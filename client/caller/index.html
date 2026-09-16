@@ -1,0 +1,1196 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Queue Caller - ระบบเรียกคิว</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+      .swal2-popup {
+        font-family:
+          "Anakotmai", "Anokotmai", "Noto Sans Thai", "Sarabun", sans-serif !important;
+        border-radius: 1rem !important;
+      }
+      @font-face {
+        font-family: "Anakotmai";
+        src:
+          url("/fonts/anakotmai-medium.woff2") format("woff2"),
+          url("/fonts/anakotmai-medium.woff") format("woff");
+        font-weight: 400;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Anakotmai";
+        src:
+          url("/fonts/anakotmai-bold.woff2") format("woff2"),
+          url("/fonts/anakotmai-bold.woff") format("woff");
+        font-weight: 700;
+        font-style: normal;
+      }
+      @font-face {
+        font-family: "Anokotmai";
+        src:
+          url("/fonts/anakotmai-medium.woff2") format("woff2"),
+          url("/fonts/anakotmai-medium.woff") format("woff");
+        font-weight: 400;
+      }
+      body {
+        font-family: "Anakotmai", "Anokotmai", "Noto Sans Thai", sans-serif;
+        background-color: #f1f5f9;
+        min-height: 100vh;
+        -webkit-font-smoothing: antialiased;
+      }
+      .header-bar {
+        background: linear-gradient(135deg, #1e3a8a, #2563eb);
+        color: #fff;
+        padding: 0.85rem 1.25rem;
+        border-radius: 0 0 1rem 1rem;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      .station-badge {
+        background-color: rgba(255, 255, 255, 0.2);
+        padding: 0.35rem 0.85rem;
+        border-radius: 9999px;
+        font-weight: 600;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .current-card {
+        background: #fff;
+        border-radius: 1.25rem;
+        border: 2px solid #e2e8f0;
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        text-align: center;
+        padding: 1.75rem 1.25rem;
+      }
+      .current-q-num {
+        font-size: 3.5rem;
+        font-weight: 800;
+        color: #1e3a8a;
+        letter-spacing: 2px;
+        line-height: 1.1;
+      }
+      .current-q-name {
+        font-size: 1.5rem;
+        font-weight: 600;
+        color: #334155;
+        margin-top: 0.5rem;
+        min-height: 2.25rem;
+      }
+      .btn-action {
+        border-radius: 0.85rem;
+        padding: 1rem 1.25rem;
+        font-size: 1.15rem;
+        font-weight: 700;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transition: all 0.15s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+      }
+      .btn-action:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 12px -2px rgba(0, 0, 0, 0.15);
+      }
+      .btn-action:active {
+        transform: translateY(0);
+      }
+      .waiting-box {
+        background: #fff;
+        border-radius: 1rem;
+        border: 1px solid #e2e8f0;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+      }
+      .waiting-header {
+        background: #f8fafc;
+        padding: 0.85rem 1.25rem;
+        font-weight: 700;
+        color: #475569;
+        border-bottom: 1px solid #e2e8f0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .waiting-list-item {
+        padding: 0.8rem 1.1rem;
+        border-bottom: 1px solid #f1f5f9;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        transition: background 0.15s;
+      }
+      .waiting-list-item:hover {
+        background: #f8fafc;
+      }
+      .q-tag {
+        background: #e0f2fe;
+        color: #0369a1;
+        font-weight: 700;
+        font-size: 1.1rem;
+        padding: 0.2rem 0.65rem;
+        border-radius: 0.5rem;
+      }
+      .desk-select {
+        background: #ffffff;
+        color: #1e3a8a;
+        font-weight: 700;
+        border-radius: 0.5rem;
+        padding: 0.25rem 0.65rem;
+        font-size: 0.95rem;
+        border: 1px solid #cbd5e1;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Bar -->
+    <div
+      class="header-bar d-flex justify-content-between align-items-center flex-wrap gap-2"
+    >
+      <div class="d-flex align-items-center flex-wrap gap-2">
+        <h5 class="mb-0 fw-bold">
+          <i class="fa-solid fa-hospital me-2"></i>Smart Queue MTH
+        </h5>
+        <div class="station-badge">
+          <i class="fa-solid fa-desktop"></i>
+          <span id="stationNameDisplay">กำลังโหลด...</span>
+        </div>
+
+        <!-- Desk / Unit Selector (สำหรับแผนกที่มีหลายโต๊ะ เช่น sa, er, rx) -->
+        <div
+          id="deskSelectorWrap"
+          class="d-none align-items-center gap-1 bg-white bg-opacity-10 px-2 py-1 rounded-3"
+        >
+          <span class="small text-white opacity-90"
+            ><i class="fa-solid fa-chair me-1"></i>โต๊ะ/จุด:</span
+          >
+          <select
+            class="desk-select"
+            id="deskSelect"
+            onchange="onDeskChanged(this.value)"
+          >
+            <!-- Dynamic -->
+          </select>
+        </div>
+      </div>
+
+      <!-- Right Controls Group (ขวาหมดเลย) -->
+      <div class="d-flex gap-2 align-items-center flex-wrap ms-auto">
+        <!-- Dental Room Mode Toggle (สำหรับทันตกรรม) -->
+        <div
+          id="dentalRoomModeWrap"
+          class="d-none align-items-center gap-2 bg-white px-3 py-1 rounded-3 shadow-sm"
+          style="border: 1px solid #cbd5e1; min-height: 31px"
+        >
+          <div
+            class="form-check form-switch mb-0 d-flex align-items-center gap-2"
+          >
+            <input
+              class="form-check-input my-0"
+              type="checkbox"
+              id="dentalRoomModeToggle"
+              onchange="onDentalRoomModeChange(this.checked)"
+              style="cursor: pointer; width: 2.2em; height: 1.15em"
+            />
+            <label
+              class="form-check-label small fw-bold mb-0"
+              for="dentalRoomModeToggle"
+              style="
+                cursor: pointer;
+                user-select: none;
+                color: #1e3a8a !important;
+                white-space: nowrap;
+              "
+            >
+              <i class="fa-solid fa-door-open me-1 text-primary"></i
+              >ส่งแบบเลือกห้อง (ห้อง 1-5)
+            </label>
+          </div>
+        </div>
+        <!-- Voice Selection Dropdown -->
+        <select
+          class="form-select form-select-sm bg-white text-dark fw-bold border-0 shadow-sm"
+          id="callerVoiceSelect"
+          style="width: auto; cursor: pointer"
+          onchange="onCallerVoiceChange(this.value)"
+          title="เลือกเสียงเรียกคิว"
+        >
+          <option value="premwadee">🗣️ เสียงเปรมวดี (หญิง ธรรมชาติ)</option>
+          <option value="niwat">🗣️ เสียงนิวัฒน์ (ชาย สุภาพ)</option>
+          <option value="google">🗣️ เสียง Google (เดิม)</option>
+        </select>
+
+        <button
+          class="btn btn-outline-light btn-sm"
+          id="btnCallerSound"
+          onclick="toggleCallerSound()"
+          title="เปิด/ปิดเสียงที่เครื่องนี้"
+        >
+          <i class="fa-solid fa-volume-xmark me-1" id="soundIcon"></i
+          ><span id="soundText">เสียงเครื่องนี้: ปิด</span>
+        </button>
+        <button
+          class="btn btn-outline-light btn-sm"
+          onclick="location.href = 'setup.html'"
+          title="ตั้งค่าจุดบริการ"
+        >
+          <i class="fa-solid fa-gear me-1"></i>ตั้งค่าจุด
+        </button>
+        <button
+          class="btn btn-light btn-sm fw-bold text-primary"
+          onclick="refreshQueue()"
+          title="รีเฟรช"
+        >
+          <i class="fa-solid fa-rotate-right"></i>
+        </button>
+      </div>
+    </div>
+
+    <div class="container-fluid py-4 px-3" style="max-width: 1100px">
+      <!-- Current Calling Box -->
+      <div class="current-card mb-4">
+        <div class="text-muted fw-bold text-uppercase small tracking-wider">
+          คิวปัจจุบันที่กำลังเรียก
+        </div>
+        <div class="current-q-num my-2" id="currentQNum">-</div>
+        <div class="current-q-name" id="currentQName">ยังไม่มีการเรียกคิว</div>
+        <div class="text-muted small mt-1" id="lastCalledTime"></div>
+      </div>
+
+      <!-- Actions -->
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-md-5">
+          <button
+            class="btn btn-primary btn-action w-100"
+            id="btnNext"
+            onclick="callNext()"
+          >
+            <i class="fa-solid fa-play fa-lg"></i>
+            <span>เรียกคิวถัดไป</span>
+            <span class="badge bg-light text-primary ms-1" id="nextQBadge"
+              >-</span
+            >
+          </button>
+        </div>
+        <div class="col-6 col-md-4">
+          <button
+            class="btn btn-warning btn-action text-dark w-100"
+            id="btnRepeat"
+            onclick="callRepeat()"
+            disabled
+          >
+            <i class="fa-solid fa-rotate-left fa-lg"></i>
+            <span>เรียกซ้ำ</span>
+          </button>
+        </div>
+        <div class="col-6 col-md-3">
+          <button
+            class="btn btn-outline-danger btn-action w-100"
+            id="btnSkip"
+            onclick="skipQueue()"
+            disabled
+          >
+            <i class="fa-solid fa-forward-step"></i>
+            <span>ข้ามคิว</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Manual Call Input -->
+      <div class="input-group mb-4">
+        <input
+          type="text"
+          class="form-control form-control-lg fw-bold text-center"
+          id="manualQInput"
+          placeholder="กรอกหมายเลขคิวเจาะจง (เช่น Q005)"
+        />
+        <button class="btn btn-dark px-4 fw-bold" onclick="callManual()">
+          <i class="fa-solid fa-bullhorn me-1"></i> เรียก
+        </button>
+      </div>
+
+      <!-- 2-Column Layout: Waiting List (ซ้าย) & Called List (ขวา) -->
+      <div class="row g-3">
+        <!-- 1. คิวรอเรียก -->
+        <div class="col-12 col-lg-7">
+          <div class="waiting-box h-100">
+            <div class="waiting-header">
+              <span
+                ><i class="fa-solid fa-list-ol me-2 text-primary"></i
+                >รายการคิวรอเรียก</span
+              >
+              <span class="badge bg-primary rounded-pill" id="waitingCountBadge"
+                >รอ 0 คน</span
+              >
+            </div>
+            <div
+              class="waiting-list-body"
+              id="waitingListContainer"
+              style="max-height: 520px; overflow-y: auto"
+            >
+              <div class="text-center py-4 text-muted">
+                กำลังโหลดรายการคิว...
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. คิวที่เรียกแล้ว / กำลังรับบริการ (มีปุ่มเรียกซ้ำแต่ละคน) -->
+        <div class="col-12 col-lg-5">
+          <div class="waiting-box h-100 border-success">
+            <div class="waiting-header bg-success-subtle text-success-emphasis">
+              <span
+                ><i class="fa-solid fa-clock-rotate-left me-2 text-success"></i
+                >คิวที่เรียกแล้ว (กำลังรับบริการ)</span
+              >
+              <span class="badge bg-success rounded-pill" id="calledCountBadge"
+                >0 คน</span
+              >
+            </div>
+            <div
+              class="waiting-list-body"
+              id="calledListContainer"
+              style="max-height: 520px; overflow-y: auto"
+            >
+              <div class="text-center py-4 text-muted">
+                ยังไม่มีคิวที่ถูกเรียก
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: เลือกห้องตรวจแพทย์ OPD 1-5 (สำหรับ sb) -->
+    <div
+      class="modal fade"
+      id="roomSelectModal"
+      tabindex="-1"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-dialog-centered" style="max-width: 480px">
+        <div
+          class="modal-content border-0 shadow-lg"
+          style="
+            border-radius: 1rem;
+            overflow: hidden;
+            border: 2px solid #166534;
+          "
+        >
+          <div
+            class="modal-header text-white text-center flex-column py-3"
+            style="background: #166534"
+          >
+            <button
+              type="button"
+              class="btn-close btn-close-white position-absolute top-0 end-0 m-3"
+              data-bs-dismiss="modal"
+              aria-label="Close"
+            ></button>
+            <div class="fs-4 fw-bold" id="roomModalPatientName">-</div>
+            <div class="fs-5 opacity-90 mt-1" id="roomModalTitle">
+              ส่งตรวจไปที่ห้องตรวจ
+            </div>
+          </div>
+          <div class="modal-body p-0">
+            <table
+              class="table table-hover mb-0 text-center"
+              style="font-size: 1.15rem; cursor: pointer"
+            >
+              <thead class="table-success" style="font-weight: 800">
+                <tr>
+                  <th class="text-start ps-4" style="width: 60%">จุดบริการ</th>
+                  <th style="width: 20%">ID</th>
+                  <th style="width: 20%">No</th>
+                </tr>
+              </thead>
+              <tbody id="roomTableBody">
+                <!-- Render via JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Socket.IO & Logic -->
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+      let socket = null;
+      let currentStationId = localStorage.getItem("sq_station_id");
+      let currentStationName = localStorage.getItem("sq_station_name");
+      let waitingQueue = [];
+      let calledQueue = [];
+      let currentCallingQ = null;
+      let roomModal = null;
+      let pendingQueueForRoom = null;
+      let pendingNameForRoom = null;
+      let pendingVnForRoom = null;
+
+      // ตรวจสอบ station ใน localStorage
+      if (!currentStationId) {
+        window.location.href = "setup.html";
+      }
+
+      document.getElementById("stationNameDisplay").innerText =
+        currentStationName || currentStationId;
+
+      // ── Setup Desk Selector ───────────────────────────────────────────
+      const deptPrefix = (currentStationId || "")
+        .toLowerCase()
+        .replace(/[0-9]/g, "");
+      let deskOptions = [];
+
+      if (deptPrefix === "sa") {
+        deskOptions = [
+          { val: 1, label: "โต๊ะซักประวัติ 1" },
+          { val: 2, label: "โต๊ะซักประวัติ 2" },
+          { val: 3, label: "โต๊ะซักประวัติ 3" },
+          { val: 4, label: "โต๊ะซักประวัติ 4" },
+          { val: 5, label: "โต๊ะซักประวัติ 5" },
+          { val: 6, label: "โต๊ะซักประวัติ 6" },
+        ];
+      } else if (deptPrefix === "er") {
+        deskOptions = [
+          { val: 1, label: "ห้อง ER 1" },
+          { val: 2, label: "ห้อง ER 2" },
+          { val: 3, label: "ห้อง ER 3" },
+          { val: 4, label: "ห้อง ER 4" },
+          { val: 5, label: "ห้อง ER 5" },
+          { val: 6, label: "ห้อง ER 6" },
+          { val: 7, label: "ห้อง ER 7" },
+          { val: 8, label: "ห้อง ER 8" },
+        ];
+      } else if (deptPrefix === "rx") {
+        deskOptions = [
+          { val: 1, label: "ช่องจ่ายยา 1" },
+          { val: 2, label: "ช่องจ่ายยา 2" },
+          { val: 3, label: "ช่องจ่ายยา 3" },
+          { val: 4, label: "ช่องจ่ายยา 4" },
+          { val: 5, label: "ช่องจ่ายยา 5" },
+        ];
+      }
+
+      // ── สำหรับแผนกทันตกรรม (d): โหมดส่งตรวจแบบเลือกห้อง (ห้อง 1-5) ──
+      const isDental = deptPrefix === "d" || currentStationId === "d";
+      let isDentalRoomMode =
+        localStorage.getItem("sq_dental_room_mode") === "1";
+
+      if (isDental) {
+        const dWrap = document.getElementById("dentalRoomModeWrap");
+        const dToggle = document.getElementById("dentalRoomModeToggle");
+        if (dWrap && dToggle) {
+          dWrap.classList.remove("d-none");
+          dWrap.classList.add("d-flex");
+          dToggle.checked = isDentalRoomMode;
+        }
+      }
+
+      function onDentalRoomModeChange(checked) {
+        isDentalRoomMode = Boolean(checked);
+        localStorage.setItem(
+          "sq_dental_room_mode",
+          isDentalRoomMode ? "1" : "0",
+        );
+        renderWaitingList();
+
+        const Toast = Swal.mixin({
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1800,
+          timerProgressBar: true,
+        });
+        Toast.fire({
+          icon: "info",
+          title: isDentalRoomMode
+            ? "เปิดโหมดเลือกห้องตรวจ (ห้อง 1-5)"
+            : "โหมดค่าเริ่มต้น (ที่ห้องตรวจทันตกรรม)",
+        });
+      }
+
+      let currentDeskNumber =
+        parseInt(localStorage.getItem("sq_desk_number_" + currentStationId)) ||
+        1;
+
+      if (deskOptions.length > 0 && !isDental) {
+        const wrap = document.getElementById("deskSelectorWrap");
+        const sel = document.getElementById("deskSelect");
+        wrap.classList.remove("d-none");
+        wrap.classList.add("d-flex");
+        sel.innerHTML = deskOptions
+          .map(
+            (o) =>
+              `<option value="${o.val}" ${o.val === currentDeskNumber ? "selected" : ""}>${o.label}</option>`,
+          )
+          .join("");
+      }
+
+      function onDeskChanged(val) {
+        currentDeskNumber = parseInt(val) || 1;
+        localStorage.setItem(
+          "sq_desk_number_" + currentStationId,
+          currentDeskNumber,
+        );
+      }
+
+      // ── Setup Voice Selection ─────────────────────────────────────────
+      const savedVoice =
+        localStorage.getItem("sq_display_voice") || "premwadee";
+      const callerVoiceEl = document.getElementById("callerVoiceSelect");
+      if (callerVoiceEl) callerVoiceEl.value = savedVoice;
+
+      function onCallerVoiceChange(val) {
+        localStorage.setItem("sq_display_voice", val);
+        if (callerAudioEnabled) {
+          playCallerAudio("ทดสอบเสียงเรียกคิว ค่ะ");
+        }
+      }
+
+      // ── Connect Socket.IO ─────────────────────────────────────────────
+      socket = io();
+      socket.emit("join_caller", { stationId: currentStationId });
+
+      socket.on("queue_called_ack", (data) => {
+        if (
+          data.stationId === currentStationId ||
+          data.department === deptPrefix
+        ) {
+          updateCurrentCallUI(data.queueId, data.rawName || data.patientName);
+          fetchWaitingList();
+          fetchCalledList();
+        }
+      });
+
+      socket.on("queue_refresh", () => {
+        fetchWaitingList();
+        fetchCalledList();
+      });
+
+      // ── Fetch Waiting List ────────────────────────────────────────────
+      async function fetchWaitingList() {
+        try {
+          const res = await fetch(
+            `/api/queue/waiting?stationId=${encodeURIComponent(currentStationId)}`,
+          );
+          const json = await res.json();
+          waitingQueue = json.queues || [];
+          renderWaitingList();
+        } catch (err) {
+          console.error("Fetch waiting list error:", err);
+        }
+      }
+
+      // ── Fetch Called List ─────────────────────────────────────────────
+      async function fetchCalledList() {
+        try {
+          const res = await fetch(
+            `/api/queue/called?stationId=${encodeURIComponent(currentStationId)}`,
+          );
+          const json = await res.json();
+          calledQueue = json.queues || [];
+          renderCalledList();
+        } catch (err) {
+          console.error("Fetch called list error:", err);
+        }
+      }
+
+      const OPD_ROOMS = [
+        { id: "sb1", code: "D01", no: 1, name: "ห้องตรวจแพทย์ OPD 1" },
+        { id: "sb2", code: "D02", no: 2, name: "ห้องตรวจแพทย์ OPD 2" },
+        { id: "sb3", code: "D03", no: 3, name: "ห้องตรวจแพทย์ OPD 3" },
+        { id: "sb4", code: "D04", no: 4, name: "ห้องตรวจแพทย์ OPD 4" },
+        { id: "sb5", code: "D05", no: 5, name: "ห้องตรวจแพทย์ OPD 5" },
+      ];
+
+      const DENTAL_ROOMS = [
+        { id: "d1", code: "T01", no: 1, name: "ห้องตรวจทันตกรรม 1" },
+        { id: "d2", code: "T02", no: 2, name: "ห้องตรวจทันตกรรม 2" },
+        { id: "d3", code: "T03", no: 3, name: "ห้องตรวจทันตกรรม 3" },
+        { id: "d4", code: "T04", no: 4, name: "ห้องตรวจทันตกรรม 4" },
+        { id: "d5", code: "T05", no: 5, name: "ห้องตรวจทันตกรรม 5" },
+      ];
+
+      function isDoctorStation() {
+        return (
+          currentStationId === "sb" ||
+          (currentStationId && currentStationId.startsWith("sb"))
+        );
+      }
+
+      function openRoomModal(qCode, pName, vn) {
+        pendingQueueForRoom = qCode;
+        pendingNameForRoom = pName;
+        pendingVnForRoom = vn || "";
+        document.getElementById("roomModalPatientName").innerText =
+          `${pName}  ${qCode}`;
+
+        const modalHdr = document.querySelector(
+          "#roomSelectModal .modal-header",
+        );
+        const modalTitle = document.getElementById("roomModalTitle");
+        const tbody = document.getElementById("roomTableBody");
+
+        if (isDental) {
+          if (modalHdr) modalHdr.style.background = "#0f766e";
+          if (modalTitle) modalTitle.innerText = "ส่งตรวจไปที่ห้องตรวจทันตกรรม";
+          tbody.innerHTML = DENTAL_ROOMS.map(
+            (r) => `
+          <tr onclick="onSelectRoom('${r.id}', '${r.name}')" style="transition: background 0.15s;">
+            <td class="text-start ps-4 fw-bold text-dark py-2.5">
+              <i class="fa-solid fa-tooth me-2" style="color:#0f766e;"></i>${r.name}
+            </td>
+            <td class="py-2.5"><span class="badge bg-secondary fs-6">${r.code}</span></td>
+            <td class="fw-bold fs-5 py-2.5" style="color:#0f766e;">${r.no}</td>
+          </tr>
+        `,
+          ).join("");
+        } else {
+          if (modalHdr) modalHdr.style.background = "#166534";
+          if (modalTitle) modalTitle.innerText = "ส่งตรวจไปที่ห้องตรวจ";
+          tbody.innerHTML = OPD_ROOMS.map(
+            (r) => `
+          <tr onclick="onSelectRoom('${r.id}', '${r.name}')" style="transition: background 0.15s;">
+            <td class="text-start ps-4 fw-bold text-dark py-2.5">
+              <i class="fa-solid fa-user-md text-success me-2"></i>${r.name}
+            </td>
+            <td class="py-2.5"><span class="badge bg-secondary fs-6">${r.code}</span></td>
+            <td class="fw-bold fs-5 text-success py-2.5">${r.no}</td>
+          </tr>
+        `,
+          ).join("");
+        }
+
+        if (!roomModal) {
+          roomModal = new bootstrap.Modal(
+            document.getElementById("roomSelectModal"),
+          );
+        }
+        roomModal.show();
+      }
+
+      function onSelectRoom(targetStationId, targetRoomName) {
+        if (!pendingQueueForRoom) return;
+        if (roomModal) roomModal.hide();
+
+        const deskNo = parseInt(targetStationId.replace(/\D/g, "")) || 1;
+        const item = waitingQueue.find(
+          (w) => (w.depq || w.fullname) === pendingQueueForRoom,
+        );
+        const vn = pendingVnForRoom || item?.vn || "";
+        const stId = isDental ? "d" : "sb";
+
+        socket.emit("call_queue", {
+          stationId: stId,
+          deskNumber: deskNo,
+          queueId: pendingQueueForRoom,
+          vn: vn,
+          type: "normal",
+          roomMode: true,
+          token: localStorage.getItem("sq_token") || "",
+        });
+
+        updateCurrentCallUI(
+          pendingQueueForRoom,
+          `${pendingNameForRoom} (ส่งไป ${targetRoomName})`,
+        );
+        fetchWaitingList();
+        fetchCalledList();
+      }
+
+      function renderWaitingList() {
+        const container = document.getElementById("waitingListContainer");
+        document.getElementById("waitingCountBadge").innerText =
+          `รอ ${waitingQueue.length} คน`;
+
+        if (waitingQueue.length === 0) {
+          container.innerHTML =
+            '<div class="text-center py-4 text-muted">ไม่มีคิวรอในขณะนี้</div>';
+          document.getElementById("nextQBadge").innerText = "-";
+          return;
+        }
+
+        // แสดงคิวถัดไปบนปุ่ม
+        const nextQ = waitingQueue[0];
+        document.getElementById("nextQBadge").innerText =
+          nextQ.depq || nextQ.raw_fullname || nextQ.fullname;
+
+        let html = "";
+        waitingQueue.forEach((item, idx) => {
+          const qCode = item.depq || item.fullname || `คิว #${idx + 1}`;
+          const pName =
+            item.raw_fullname ||
+            item.fullname ||
+            `${item.pname || ""}${item.fname || ""} ${item.lname || ""}`.trim() ||
+            "ไม่ระบุชื่อ";
+          const waitTime = item.wait_dep
+            ? `~${item.wait_dep} น.`
+            : item.time_visit || "";
+          const vn = item.vn || "";
+
+          const needsRoomModal =
+            isDoctorStation() || (isDental && isDentalRoomMode);
+          const callBtn = needsRoomModal
+            ? `<button class="btn btn-sm btn-success px-3 py-1 fw-bold shadow-sm" onclick="openRoomModal('${qCode}', '${pName}', '${vn}')">
+               <i class="fa-solid fa-share me-1"></i>ส่งเข้าห้องตรวจ
+             </button>`
+            : `<button class="btn btn-sm btn-outline-primary px-3 py-1 fw-bold" onclick="callSpecific('${qCode}')">
+               <i class="fa-solid fa-bullhorn me-1"></i>เรียก
+             </button>`;
+
+          html += `
+          <div class="waiting-list-item">
+            <div class="d-flex align-items-center gap-2 overflow-hidden">
+              <span class="text-muted fw-bold small" style="min-width: 20px;">${idx + 1}</span>
+              <span class="q-tag">${qCode}</span>
+              <span class="fw-semibold text-dark text-truncate" style="max-width: 220px;">${pName}</span>
+            </div>
+            <div class="d-flex align-items-center gap-2 flex-shrink-0">
+              <span class="badge bg-light text-muted border">${waitTime}</span>
+              ${callBtn}
+            </div>
+          </div>
+        `;
+        });
+        container.innerHTML = html;
+      }
+
+      function renderCalledList() {
+        const container = document.getElementById("calledListContainer");
+        const badge = document.getElementById("calledCountBadge");
+        if (badge) badge.innerText = `${calledQueue.length} คน`;
+        if (!container) return;
+
+        if (calledQueue.length === 0) {
+          container.innerHTML =
+            '<div class="text-center py-4 text-muted">ยังไม่มีคิวที่ถูกเรียก</div>';
+          return;
+        }
+
+        let html = "";
+        calledQueue.forEach((item, idx) => {
+          const qCode = item.depq || item.fullname;
+          const pName = item.raw_fullname || item.fullname || "ผู้ป่วย";
+          const desk = item.stationno
+            ? `โต๊ะ ${item.stationno}`
+            : item.station || "";
+          const time = item.time_start ? item.time_start.slice(0, 5) : "";
+          const vn = item.vn || "";
+
+          html += `
+          <div class="waiting-list-item">
+            <div class="d-flex align-items-center gap-2 overflow-hidden">
+              <span class="badge bg-success-subtle text-success border border-success-subtle fw-bold fs-6">${qCode}</span>
+              <div class="text-truncate">
+                <div class="fw-semibold text-dark text-truncate" style="max-width: 170px;">${pName}</div>
+                <div class="small text-muted">${desk} • ${time} น.</div>
+              </div>
+            </div>
+            <div class="flex-shrink-0">
+              <button class="btn btn-sm btn-warning fw-bold text-dark px-2.5 py-1 shadow-sm" onclick="recallSpecific('${qCode}', '${pName}', '${vn}', ${item.stationno || currentDeskNumber})" title="กดเรียกซ้ำ">
+                <i class="fa-solid fa-rotate-left me-1"></i>เรียกซ้ำ
+              </button>
+            </div>
+          </div>
+        `;
+        });
+        container.innerHTML = html;
+      }
+
+      function recallSpecific(qCode, pName, vn, deskNo) {
+        const isRoomMode = isDental ? isDentalRoomMode : false;
+        emitCall(qCode, "repeat", {
+          vn,
+          deskNumber: deskNo || currentDeskNumber,
+          roomMode: isRoomMode,
+        });
+      }
+
+      function updateCurrentCallUI(qNum, qName) {
+        currentCallingQ = { qNum, qName };
+        document.getElementById("currentQNum").innerText = qNum;
+        document.getElementById("currentQName").innerText =
+          qName || "เรียกคิวสำเร็จ";
+        document.getElementById("lastCalledTime").innerText =
+          `เรียกล่าสุดเมื่อ: ${new Date().toLocaleTimeString("th-TH")}`;
+        document.getElementById("btnRepeat").disabled = false;
+        document.getElementById("btnSkip").disabled = false;
+      }
+
+      function emitCall(queueId, type = "normal", extra = {}) {
+        if (!queueId) return;
+        const item =
+          waitingQueue.find((w) => (w.depq || w.fullname) === queueId) ||
+          calledQueue.find((c) => (c.depq || c.fullname) === queueId);
+        const vn = extra.vn || item?.vn || "";
+        const deskNo = extra.deskNumber || currentDeskNumber || 1;
+        const isRoomMode =
+          extra.roomMode !== undefined
+            ? extra.roomMode
+            : isDental
+              ? isDentalRoomMode
+              : false;
+
+        socket.emit("call_queue", {
+          stationId: extra.stationId || currentStationId,
+          deskNumber: deskNo,
+          queueId: queueId,
+          vn: vn,
+          type: type,
+          roomMode: isRoomMode,
+          token: localStorage.getItem("sq_token") || "",
+        });
+
+        // ดึงชื่อเต็มมาแสดงที่หน้า Caller ทันที
+        fetch(`/api/queue/patient-name?q=${encodeURIComponent(queueId)}`)
+          .then((r) => r.json())
+          .then((d) => {
+            let callDesc = d.rawName || d.name;
+            if (isDental) {
+              if (isRoomMode && extra.deskNumber) {
+                callDesc += ` (ส่งไป ห้องตรวจทันตกรรม ${extra.deskNumber})`;
+              } else {
+                callDesc += ` (ที่ห้องตรวจทันตกรรม)`;
+              }
+            }
+            updateCurrentCallUI(queueId, callDesc);
+            fetchWaitingList();
+            fetchCalledList();
+          });
+      }
+
+      function callNext() {
+        if (waitingQueue.length > 0) {
+          const next = waitingQueue[0];
+          const qCode = next.depq || next.fullname;
+          const pName = next.raw_fullname || next.fullname || "ผู้ป่วย";
+          const vn = next.vn || "";
+          if (isDoctorStation() || (isDental && isDentalRoomMode)) {
+            openRoomModal(qCode, pName, vn);
+          } else {
+            emitCall(qCode, "normal", { vn, roomMode: false });
+          }
+        } else {
+          Swal.fire({
+            icon: "info",
+            title: "ไม่มีคิวรอเรียก",
+            text: "ไม่มีผู้ป่วยรอรับบริการในขณะนี้",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+        }
+      }
+
+      function callRepeat() {
+        if (currentCallingQ) {
+          emitCall(currentCallingQ.qNum, "repeat");
+        }
+      }
+
+      function skipQueue() {
+        if (!currentCallingQ) return;
+        Swal.fire({
+          title: `ต้องการข้ามคิว ${currentCallingQ.qNum} ใช่หรือไม่?`,
+          text: currentCallingQ.qName
+            ? `ผู้ป่วย: ${currentCallingQ.qName}`
+            : "",
+          icon: "warning",
+          showCancelButton: true,
+          confirmButtonColor: "#dc2626",
+          cancelButtonColor: "#64748b",
+          confirmButtonText:
+            '<i class="fa-solid fa-forward-step me-1"></i> ยืนยัน ข้ามคิว',
+          cancelButtonText: "ยกเลิก",
+        }).then((result) => {
+          if (result.isConfirmed) {
+            emitCall(currentCallingQ.qNum, "skip");
+            callNext();
+          }
+        });
+      }
+
+      function callManual() {
+        const val = document.getElementById("manualQInput").value.trim();
+        if (!val) {
+          Swal.fire({
+            icon: "warning",
+            title: "กรุณากรอกหมายเลขคิว",
+            text: "โปรดกรอกหมายเลขคิวที่ต้องการเรียก (เช่น Q005, A001)",
+            timer: 2000,
+            showConfirmButton: false,
+          });
+          return;
+        }
+
+        if (isDoctorStation() || (isDental && isDentalRoomMode)) {
+          openRoomModal(val, "คิว " + val, "");
+        } else {
+          emitCall(val, "normal", { roomMode: false });
+        }
+        document.getElementById("manualQInput").value = "";
+      }
+
+      // รองรับการกด Enter บนช่องกรอกคิวเจาะจง
+      const manualInputEl = document.getElementById("manualQInput");
+      if (manualInputEl) {
+        manualInputEl.addEventListener("keydown", function (e) {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            callManual();
+          }
+        });
+      }
+
+      function callSpecific(qCode) {
+        const item = waitingQueue.find((w) => (w.depq || w.fullname) === qCode);
+        const pName = item ? item.raw_fullname || item.fullname : "ผู้ป่วย";
+        const vn = item?.vn || "";
+        if (isDoctorStation() || (isDental && isDentalRoomMode)) {
+          openRoomModal(qCode, pName, vn);
+        } else {
+          emitCall(qCode, "normal", { vn, roomMode: false });
+        }
+      }
+
+      function refreshQueue() {
+        fetchWaitingList();
+        fetchCalledList();
+        socket.emit("refresh_queue", { stationId: currentStationId });
+
+        const Toast = Swal.mixin({
+          toast: true,
+          position: "top-end",
+          showConfirmButton: false,
+          timer: 1200,
+          timerProgressBar: true,
+        });
+        Toast.fire({
+          icon: "success",
+          title: "รีเฟรชข้อมูลคิวเรียบร้อย",
+        });
+      }
+
+      // ── Caller Sound Feature (ฟังเสียงเรียกที่เครื่องเจ้าหน้าที่ได้ด้วย) ───
+      let callerAudioEnabled = localStorage.getItem("sq_caller_sound") === "1";
+      function updateCallerSoundUI() {
+        const icon = document.getElementById("soundIcon");
+        const text = document.getElementById("soundText");
+        if (callerAudioEnabled) {
+          icon.className = "fa-solid fa-volume-high me-1";
+          text.innerText = "เสียงเครื่องนี้: เปิด 🔊";
+        } else {
+          icon.className = "fa-solid fa-volume-xmark me-1";
+          text.innerText = "เสียงเครื่องนี้: ปิด";
+        }
+      }
+      updateCallerSoundUI();
+
+      function toggleCallerSound() {
+        callerAudioEnabled = !callerAudioEnabled;
+        localStorage.setItem("sq_caller_sound", callerAudioEnabled ? "1" : "0");
+        updateCallerSoundUI();
+        if (callerAudioEnabled) {
+          playCallerAudio("เปิดเสียงที่เครื่องนี้เรียบร้อย");
+        }
+      }
+
+      const callerAudioQueue = [];
+      let isPlayingCallerAudio = false;
+
+      function playCallerAudio(sentence) {
+        if (!callerAudioEnabled && !sentence.includes("เปิดเสียง")) return;
+        callerAudioQueue.push(sentence);
+        if (!isPlayingCallerAudio) {
+          processNextCallerAudio();
+        }
+      }
+
+      function processNextCallerAudio() {
+        if (callerAudioQueue.length === 0) {
+          isPlayingCallerAudio = false;
+          return;
+        }
+        isPlayingCallerAudio = true;
+        const sentence = callerAudioQueue.shift();
+        const voice = localStorage.getItem("sq_display_voice") || "premwadee";
+        const audio = new Audio(
+          `/api/tts?text=${encodeURIComponent(sentence)}&voice=${encodeURIComponent(voice)}`,
+        );
+
+        let finished = false;
+        let safetyTimer = null;
+        const done = () => {
+          if (finished) return;
+          finished = true;
+          if (safetyTimer) clearTimeout(safetyTimer);
+          setTimeout(() => {
+            processNextCallerAudio();
+          }, 1200);
+        };
+
+        safetyTimer = setTimeout(done, 18000);
+        audio.onended = done;
+        audio.onerror = done;
+        audio.play().catch(done);
+      }
+
+      /* ── Phonetic & Speech Helpers ──────────────────────────────────── */
+      const THAI_LETTER_MAP = {
+        A: "เอ",
+        B: "บี",
+        C: "ซี",
+        D: "ดี",
+        E: "อี",
+        F: "เอฟ",
+        G: "จี",
+        H: "เอช",
+        I: "ไอ",
+        J: "เจ",
+        K: "เค",
+        L: "แอล",
+        M: "เอ็ม",
+        N: "เอ็น",
+        O: "โอ",
+        P: "พี",
+        Q: "คิว",
+        R: "อาร์",
+        S: "เอส",
+        T: "ที",
+        U: "ยู",
+        V: "วี",
+        W: "ดับเบิ้ลยู",
+        X: "เอ็กซ์",
+        Y: "วาย",
+        Z: "แซด",
+      };
+
+      const THAI_DIGIT_MAP = {
+        0: "ศูนย์",
+        1: "หนึ่ง",
+        2: "สอง",
+        3: "สาม",
+        4: "สี่",
+        5: "ห้า",
+        6: "หก",
+        7: "เจ็ด",
+        8: "แปด",
+        9: "เก้า",
+      };
+
+      function formatSpokenQueue(queueId) {
+        if (!queueId) return "";
+        const str = queueId.toString().trim().toUpperCase();
+        const tokens = [];
+        for (const ch of str) {
+          if (THAI_LETTER_MAP[ch]) tokens.push(THAI_LETTER_MAP[ch]);
+          else if (THAI_DIGIT_MAP[ch]) tokens.push(THAI_DIGIT_MAP[ch]);
+          else if (/[A-Z0-9ก-๙]/i.test(ch)) tokens.push(ch);
+        }
+        return tokens.join(" ");
+      }
+
+      function formatSpokenPatient(ttsName, patientName) {
+        let name = (ttsName || patientName || "").toString().trim();
+        if (!name || name === "-" || name === "เชิญรับบริการ") return "";
+        name = name.replace(/\*+/g, "").trim();
+        if (!name) return "";
+
+        const titleRegex =
+          /^(นางสาว|น\.ส\.|เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|พระครู|พระมหา|สามเณร|นาย|นาง|คุณ|พระ)\s*/i;
+        const match = name.match(titleRegex);
+        let title = "คุณ";
+        let rest = name;
+        if (match) {
+          title = match[1];
+          rest = name.slice(match[0].length).trim();
+          if (title === "ด.ช.") title = "เด็กชาย";
+          else if (title === "ด.ญ.") title = "เด็กหญิง";
+          else if (title === "น.ส.") title = "นางสาว";
+        }
+
+        const nameParts = rest.split(/\s+/).filter(Boolean);
+        if (nameParts.length >= 2) {
+          const fname = nameParts[0];
+          const lname = nameParts.slice(1).join(" ");
+          return `${title} ${fname} , ${lname}`;
+        } else if (nameParts.length === 1) {
+          return `${title} ${nameParts[0]}`;
+        }
+        return "";
+      }
+
+      function formatSpokenPlace(ttsTarget, stationLabel) {
+        let place = (ttsTarget || stationLabel || "").toString().trim();
+        if (!place) return "ที่จุดบริการ";
+        place = place.replace(/^เข้า\s*/, "");
+        if (!place.startsWith("ที่")) {
+          place = "ที่ " + place;
+        }
+        return place.trim();
+      }
+
+      function buildCallSentence({
+        queueId,
+        patientName,
+        ttsName,
+        ttsTarget,
+        stationLabel,
+      }) {
+        const spokenQ = formatSpokenQueue(queueId);
+        const spokenPatient = formatSpokenPatient(ttsName, patientName);
+        const spokenPlace = formatSpokenPlace(ttsTarget, stationLabel);
+
+        const parts = ["ขอเชิญหมายเลข"];
+        if (spokenQ) parts.push(spokenQ);
+        if (spokenPatient) parts.push(spokenPatient);
+        if (spokenPlace) parts.push(spokenPlace);
+
+        return parts.join(" , ") + " ค่ะ";
+      }
+
+      // เมื่อมีการเรียกคิว ถ้าเปิดเสียงไว้ ให้เล่นเสียงด้วย
+      socket.on("queue_called_ack", (data) => {
+        if (
+          callerAudioEnabled &&
+          (data.stationId === currentStationId ||
+            data.department === deptPrefix)
+        ) {
+          const sentence =
+            data.ttsSentence ||
+            buildCallSentence({
+              queueId: data.queueId,
+              patientName: data.patientName,
+              ttsName: data.ttsName,
+              ttsTarget: data.ttsTarget || `ที่ ${currentStationName}`,
+              stationLabel: currentStationName,
+            });
+          playCallerAudio(sentence);
+        }
+      });
+
+      // Auto poll lists every 20s
+      fetchWaitingList();
+      fetchCalledList();
+      setInterval(() => {
+        fetchWaitingList();
+        fetchCalledList();
+      }, 20000);
+    </script>
+  </body>
+</html>

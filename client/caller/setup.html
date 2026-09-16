@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ตั้งค่าจุดเรียกคิว - Smart Queue PLK</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <style>
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background-color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .setup-card {
+      background: #fff;
+      border-radius: 1.25rem;
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1);
+      width: 100%;
+      max-width: 500px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+    }
+    .setup-header {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #fff;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    .station-item {
+      border: 2px solid #e2e8f0;
+      border-radius: 0.75rem;
+      padding: 0.85rem 1rem;
+      margin-bottom: 0.65rem;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .station-item:hover {
+      border-color: #3b82f6;
+      background: #eff6ff;
+    }
+    .station-item.active {
+      border-color: #2563eb;
+      background: #dbeafe;
+      font-weight: 700;
+    }
+    .swal2-popup {
+      font-family: 'Sarabun', sans-serif !important;
+      border-radius: 1rem !important;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="setup-card">
+    <div class="setup-header">
+      <i class="fa-solid fa-sliders fa-2x mb-2"></i>
+      <h4 class="mb-0 fw-bold">ตั้งค่าจุดบริการเครื่องนี้</h4>
+      <p class="small text-white-50 mb-0">กำหนดเพียงครั้งเดียว ระบบจะจดจำไว้ตลอดการใช้งาน</p>
+    </div>
+
+    <div class="p-4">
+      <!-- Step 1: Admin Password Verification -->
+      <div id="stepPassword">
+        <label class="form-label fw-bold"><i class="fa-solid fa-lock me-1 text-primary"></i>รหัสผ่านผู้ดูแลระบบ (QUEUE_ADMIN_PASSWORD)</label>
+        <p class="small text-muted mb-2">กรุณากรอกรหัสผ่านเพื่อปลดล็อกการตั้งค่าจุดเรียกคิว (กด Enter เพื่อยืนยันได้)</p>
+        <div class="input-group mb-3">
+          <input type="password" class="form-control" id="adminPasswordInput" placeholder="กรอกรหัสผ่านผู้ดูแลระบบ" autofocus autocomplete="current-password">
+          <button class="btn btn-primary px-3 fw-bold" id="btnVerifyPassword" onclick="verifyPassword()">
+            <i class="fa-solid fa-key me-1"></i> ยืนยัน
+          </button>
+        </div>
+        <div id="passwordError" class="text-danger small d-none">รหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง</div>
+        
+        <div id="existingStationLink" class="text-center mt-3 d-none">
+          <a href="index.html" class="btn btn-link btn-sm text-decoration-none text-muted">
+            <i class="fa-solid fa-arrow-left me-1"></i>กลับไปหน้าเรียกคิว (<span id="existingStationName"></span>)
+          </a>
+        </div>
+      </div>
+
+      <!-- Step 2: Select Station -->
+      <div id="stepStation" class="d-none">
+        <label class="form-label fw-bold mb-1"><i class="fa-solid fa-desktop me-1 text-primary"></i>เลือกจุดบริการของเครื่องนี้</label>
+        <p class="small text-muted mb-3">คลิกเลือกแผนกที่ต้องการ หรือดับเบิลคลิกเพื่อบันทึกทันที</p>
+        
+        <div id="stationListContainer" style="max-height: 320px; overflow-y: auto;">
+          <div class="text-center py-3 text-muted">กำลังโหลดรายการจุดบริการ...</div>
+        </div>
+
+        <button class="btn btn-success w-100 py-2.5 mt-3 fw-bold rounded-3 shadow-sm" id="btnSaveStation" onclick="saveStation()" disabled>
+          <i class="fa-solid fa-floppy-disk me-1"></i> บันทึกและเริ่มใช้งาน
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let selectedStationId = null;
+    let selectedStationName = null;
+    let stations = [];
+
+    // แสดงปุ่มกลับหน้าเรียกคิวถ้าเคยตั้งค่าไว้แล้ว
+    const currentSavedId = localStorage.getItem('sq_station_id');
+    const currentSavedName = localStorage.getItem('sq_station_name');
+    if (currentSavedId) {
+      const linkWrap = document.getElementById('existingStationLink');
+      const nameSpan = document.getElementById('existingStationName');
+      if (linkWrap && nameSpan) {
+        nameSpan.textContent = currentSavedName || currentSavedId;
+        linkWrap.classList.remove('d-none');
+      }
+    }
+
+    // รองรับการกดปุ่ม Enter บนช่องกรอกรหัสผ่าน
+    const pwdInput = document.getElementById('adminPasswordInput');
+    pwdInput.addEventListener('keydown', function(e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        verifyPassword();
+      }
+    });
+
+    async function verifyPassword() {
+      const password = pwdInput.value.trim();
+      const errEl = document.getElementById('passwordError');
+      errEl.classList.add('d-none');
+
+      if (!password) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'กรุณากรอกรหัสผ่าน',
+          text: 'โปรดระบุรหัสผ่านผู้ดูแลระบบ (QUEUE_ADMIN_PASSWORD)',
+          confirmButtonColor: '#2563eb',
+          confirmButtonText: 'ตกลง'
+        }).then(() => {
+          pwdInput.focus();
+        });
+        return;
+      }
+
+      const btn = document.getElementById('btnVerifyPassword');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>กำลังตรวจ...';
+
+      try {
+        const res = await fetch('/api/auth/verify-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password })
+        });
+
+        const data = await res.json();
+        if (res.ok && data.valid) {
+          // ปลดล็อก Step 2
+          document.getElementById('stepPassword').classList.add('d-none');
+          document.getElementById('stepStation').classList.remove('d-none');
+          loadStations();
+
+          const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1400,
+            timerProgressBar: true
+          });
+          Toast.fire({
+            icon: 'success',
+            title: 'ยืนยันรหัสผ่านถูกต้อง'
+          });
+        } else {
+          errEl.innerText = data.error || 'รหัสผ่านไม่ถูกต้อง';
+          errEl.classList.remove('d-none');
+
+          Swal.fire({
+            icon: 'error',
+            title: 'รหัสผ่านไม่ถูกต้อง',
+            text: data.error || 'กรุณาตรวจสอบรหัสผ่านผู้ดูแลระบบ (QUEUE_ADMIN_PASSWORD) อีกครั้ง',
+            confirmButtonColor: '#2563eb',
+            confirmButtonText: 'ลองใหม่อีกครั้ง'
+          }).then(() => {
+            pwdInput.value = '';
+            pwdInput.focus();
+          });
+        }
+      } catch (err) {
+        console.warn('Backend verify failed:', err);
+        errEl.innerText = 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้';
+        errEl.classList.remove('d-none');
+
+        Swal.fire({
+          icon: 'error',
+          title: 'เชื่อมต่อไม่สำเร็จ',
+          text: 'ไม่สามารถติดต่อเซิร์ฟเวอร์ SmartQueue ได้ กรุณาตรวจสอบว่าเซิร์ฟเวอร์เปิดอยู่หรือไม่',
+          confirmButtonColor: '#2563eb'
+        });
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-key me-1"></i> ยืนยัน';
+      }
+    }
+
+    async function loadStations() {
+      try {
+        const res = await fetch('/api/stations');
+        const data = await res.json();
+        stations = data.stations || [];
+        renderStations();
+      } catch (err) {
+        console.error('Load stations error:', err);
+      }
+    }
+
+    function renderStations() {
+      const container = document.getElementById('stationListContainer');
+      const savedId = localStorage.getItem('sq_station_id');
+
+      if (stations.length === 0) {
+        container.innerHTML = '<div class="text-center py-3 text-muted">ไม่พบข้อมูลจุดบริการ</div>';
+        return;
+      }
+
+      let html = '';
+      stations.forEach(s => {
+        const isCurrent = s.id === savedId;
+        html += `
+          <div class="station-item ${isCurrent ? 'active' : ''}" 
+               onclick="selectStation('${s.id}', '${s.name}', this)"
+               ondblclick="quickSaveStation('${s.id}', '${s.name}')"
+               title="คลิกเพื่อเลือก หรือดับเบิลคลิกเพื่อบันทึกทันที">
+            <div>
+              <div class="fw-bold">${s.name}</div>
+              <div class="small text-muted">รหัสช่อง: ${s.id} | รูปแบบ: ${s.layout}</div>
+            </div>
+            <i class="fa-solid fa-circle-check fa-lg text-primary ${isCurrent ? '' : 'd-none'}" id="check_${s.id}"></i>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+
+      if (savedId) {
+        const matched = stations.find(s => s.id === savedId);
+        if (matched) {
+          selectedStationId = matched.id;
+          selectedStationName = matched.name;
+          document.getElementById('btnSaveStation').disabled = false;
+        }
+      }
+    }
+
+    function selectStation(id, name, el) {
+      selectedStationId = id;
+      selectedStationName = name;
+
+      document.querySelectorAll('.station-item').forEach(item => item.classList.remove('active'));
+      document.querySelectorAll('[id^="check_"]').forEach(icon => icon.classList.add('d-none'));
+
+      el.classList.add('active');
+      const icon = document.getElementById(`check_${id}`);
+      if (icon) icon.classList.remove('d-none');
+
+      document.getElementById('btnSaveStation').disabled = false;
+    }
+
+    function quickSaveStation(id, name) {
+      selectedStationId = id;
+      selectedStationName = name;
+      saveStation();
+    }
+
+    function saveStation() {
+      if (!selectedStationId) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'กรุณาเลือกจุดบริการ',
+          text: 'โปรดคลิกเลือกจุดบริการของเครื่องนี้ก่อนดำเนินการต่อ',
+          confirmButtonColor: '#2563eb',
+          confirmButtonText: 'ตกลง'
+        });
+        return;
+      }
+
+      localStorage.setItem('sq_station_id', selectedStationId);
+      localStorage.setItem('sq_station_name', selectedStationName);
+
+      Swal.fire({
+        icon: 'success',
+        title: 'บันทึกสำเร็จ!',
+        text: `ตั้งค่าจุดบริการเป็น "${selectedStationName}" เรียบร้อย กำลังไปหน้าเรียกคิว...`,
+        timer: 1200,
+        showConfirmButton: false,
+        timerProgressBar: true
+      }).then(() => {
+        window.location.href = 'index.html';
+      });
+    }
+  </script>
+</body>
+</html>

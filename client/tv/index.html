@@ -1,0 +1,190 @@
+<!doctype html>
+<html lang="th">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SmartQueue TV Launcher</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        background: #0f172a;
+        color: #fff;
+        font-family: "Noto Sans Thai", "Sarabun", sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        gap: 2rem;
+      }
+      .logo {
+        font-size: 2rem;
+        font-weight: 800;
+        color: #38bdf8;
+      }
+      .subtitle {
+        color: #94a3b8;
+        font-size: 1.1rem;
+      }
+      .dept-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 1.25rem;
+        width: 100%;
+        max-width: 900px;
+        padding: 1rem;
+      }
+      .dept-btn {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 2rem 1rem;
+        background: #1e293b;
+        border: 2px solid #334155;
+        border-radius: 1rem;
+        cursor: pointer;
+        text-decoration: none;
+        color: #fff;
+        transition: all 0.2s ease;
+      }
+      .dept-btn:hover,
+      .dept-btn:focus {
+        background: #2563eb;
+        border-color: #3b82f6;
+        transform: scale(1.04);
+        box-shadow: 0 0 24px rgba(59, 130, 246, 0.5);
+      }
+      .dept-btn i {
+        font-size: 2.5rem;
+      }
+      .dept-btn .name {
+        font-size: 1.15rem;
+        font-weight: 700;
+        text-align: center;
+      }
+      .dept-btn .url {
+        font-size: 0.75rem;
+        color: #94a3b8;
+        word-break: break-all;
+        text-align: center;
+      }
+      .footer {
+        color: #475569;
+        font-size: 0.85rem;
+        margin-top: 1rem;
+        text-align: center;
+      }
+      .fullscreen-hint {
+        position: fixed;
+        bottom: 1rem;
+        right: 1rem;
+        background: #1e293b;
+        border: 1px solid #334155;
+        padding: 0.5rem 1rem;
+        border-radius: 0.5rem;
+        color: #94a3b8;
+        font-size: 0.8rem;
+        cursor: pointer;
+      }
+    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@400;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"
+    />
+  </head>
+  <body>
+    <div class="logo">
+      <i class="fa-solid fa-hospital-symbol me-2"></i>Smart Queue PLK
+    </div>
+    <div class="subtitle">เลือกแผนกที่ต้องการแสดงผลบนจอทีวี</div>
+
+    <div class="dept-grid" id="deptGrid">
+      <!-- Rendered by JS from config -->
+    </div>
+
+    <div class="footer">
+      คลิกที่แผนกเพื่อเปิดหน้าจอแสดงผลแบบเต็มจอ<br />
+      หรือเปิด URL ตรงในเบราว์เซอร์ <strong>/tv/[station]</strong>
+    </div>
+
+    <button class="fullscreen-hint" onclick="toggleFullscreen()">
+      <i class="fa-solid fa-expand me-1"></i>เต็มจอ (F11)
+    </button>
+
+    <script>
+      const DEPARTMENTS = [
+        {
+          id: "sa",
+          name: "จุดซักประวัติ",
+          icon: "fa-user-nurse",
+          color: "#0284c7",
+        },
+        {
+          id: "sb",
+          name: "ห้องตรวจ",
+          icon: "fa-stethoscope",
+          color: "#16a34a",
+        },
+        {
+          id: "rx",
+          name: "ห้องยาและการเงิน",
+          icon: "fa-pills",
+          color: "#9333ea",
+        },
+        {
+          id: "er",
+          name: "ห้องฉุกเฉิน",
+          icon: "fa-truck-medical",
+          color: "#dc2626",
+        },
+        {
+          id: "t",
+          name: "ห้องฉีดยา ทำแผล",
+          icon: "fa-syringe",
+          color: "#d97706",
+        },
+        { id: "d", name: "ทันตกรรม", icon: "fa-tooth", color: "#0891b2" },
+        { id: "l", name: "ห้องปฏิบัติการ", icon: "fa-flask", color: "#7c3aed" },
+        { id: "x", name: "เอกซเรย์", icon: "fa-x-ray", color: "#475569" },
+      ];
+
+      const grid = document.getElementById("deptGrid");
+      DEPARTMENTS.forEach((d) => {
+        const url = `/tv/${d.id}`;
+        grid.innerHTML += `
+    <a class="dept-btn" href="${url}" style="--c:${d.color}">
+      <i class="fa-solid ${d.icon}" style="color:${d.color}"></i>
+      <span class="name">${d.name}</span>
+      <span class="url">/tv/${d.id}</span>
+    </a>
+  `;
+      });
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen();
+        }
+      }
+
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "F11") {
+          e.preventDefault();
+          toggleFullscreen();
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,1054 @@
+<!DOCTYPE html>
+<html lang="th" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Queue — โรงพยาบาลแม่ทะ</title>
+  <!-- Anakotmai Font & Font Awesome -->
+  <style>
+    @font-face {
+      font-family: 'Anakotmai';
+      src: url('/fonts/anakotmai-medium.woff2') format('woff2'),
+           url('/fonts/anakotmai-medium.woff') format('woff');
+      font-weight: 400;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Anakotmai';
+      src: url('/fonts/anakotmai-bold.woff2') format('woff2'),
+           url('/fonts/anakotmai-bold.woff') format('woff');
+      font-weight: 700;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Anakotmai';
+      src: url('/fonts/anakotmai-light.woff2') format('woff2'),
+           url('/fonts/anakotmai-light.woff') format('woff');
+      font-weight: 300;
+      font-style: normal;
+    }
+    @font-face {
+      font-family: 'Anokotmai';
+      src: url('/fonts/anakotmai-medium.woff2') format('woff2'),
+           url('/fonts/anakotmai-medium.woff') format('woff');
+      font-weight: 400;
+    }
+    @font-face {
+      font-family: 'Anokotmai';
+      src: url('/fonts/anakotmai-bold.woff2') format('woff2'),
+           url('/fonts/anakotmai-bold.woff') format('woff');
+      font-weight: 700;
+    }
+  </style>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+  <style>
+    /* ── CSS Variables / Themes ─────────────────────────────────────── */
+    :root {
+      --font: 'Anakotmai', 'Anokotmai', 'Noto Sans Thai', 'Tahoma', sans-serif;
+
+      /* Light (Clean & Elegant Hospital Style แบบระบบเดิม) */
+      --bg:            #f4f6fa;
+      --bg-card:       #ffffff;
+      --card-bg:       #ffffff;
+      --bg-hdr:        linear-gradient(135deg, #0b4f35, #117851, #0b4f35);
+      --bg-subhdr:     #007d44;
+      --border:        #e2e8f0;
+      --text:          #1e293b;
+      --text-muted:    #506173;
+      --text-hdr:      #ffffff;
+      --accent:        #007d44;
+      --accent2:       #f76707;
+      --called-bg:     #ffffff;
+      --called-bdr:    #f76707;
+      --stripe:        #f8fafc;
+      --footer-bg:     #111827;
+      --footer-text:   #ffffff;
+      --shadow:        0 4px 18px rgba(0, 0, 0, 0.08);
+      --panel-hdr-bg:  linear-gradient(135deg, #007d44, #1b8a53, #007d44);
+    }
+    [data-theme="dark"] {
+      --bg:            #0f172a;
+      --bg-card:       #1e293b;
+      --card-bg:       #1e293b;
+      --bg-hdr:        linear-gradient(135deg, #0a0f1d, #1e293b, #0a0f1d);
+      --bg-subhdr:     #1e293b;
+      --border:        #334155;
+      --text:          #f1f5f9;
+      --text-muted:    #94a3b8;
+      --text-hdr:      #f1f5f9;
+      --accent:        #3b82f6;
+      --accent2:       #f59e0b;
+      --called-bg:     #172033;
+      --called-bdr:    #f59e0b;
+      --stripe:        #182338;
+      --footer-bg:     #090d16;
+      --footer-text:   #93c5fd;
+      --shadow:        0 4px 20px rgba(0, 0, 0, 0.45);
+      --panel-hdr-bg:  linear-gradient(135deg, #1e3a8a, #2563eb, #1e3a8a);
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      width: 100vw; height: 100vh;
+      overflow: hidden;
+      display: flex; flex-direction: column;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    .sq-hdr {
+      background: var(--bg-hdr);
+      color: var(--text-hdr);
+      padding: 0.45rem 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid var(--accent2);
+      flex-shrink: 0;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+    }
+    .sq-hdr-left { display: flex; align-items: center; gap: 0.85rem; }
+    .sq-hosp-logo {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.25));
+    }
+    .sq-hdr-icon {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.18);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem;
+    }
+    /* ★ ชื่อจุดบริการ (Station Title): เด่นชัด ใหญ่กว่าชื่อโรงพยาบาล */
+    .sq-hdr-titles {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+    }
+    .sq-station-title {
+      font-family: var(--font);
+      font-size: 2.3rem;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      color: #ffffff;
+      line-height: 1.1;
+      white-space: nowrap;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.25);
+    }
+    /* ★ ชื่อโรงพยาบาล: ตัวเล็กลงอยู่ด้านล่าง */
+    .sq-hosp-subname {
+      font-family: var(--font);
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: 0.2px;
+      white-space: nowrap;
+      line-height: 1.2;
+      margin-top: 0.15rem;
+    }
+    .sq-hdr-right {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      flex-shrink: 0;
+    }
+    /* ★ ปุ่ม theme: รวมเป็นปุ่มเดียว สลับโหมดได้ */
+    .sq-theme-btn {
+      font-family: var(--font);
+      font-size: 0.92rem;
+      font-weight: 700;
+      background: rgba(255,255,255,0.16);
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: var(--text-hdr);
+      border-radius: 9999px;
+      padding: 0.32rem 0.95rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      white-space: nowrap;
+      transition: background 0.15s, transform 0.1s;
+    }
+    .sq-theme-btn:hover { background: rgba(255,255,255,0.28); }
+    .sq-theme-btn:active { transform: scale(0.96); }
+
+    .sq-audio-btn {
+      font-family: var(--font);
+      font-size: 0.92rem;
+      font-weight: 700;
+      background: rgba(255,255,255,0.16);
+      border: 1.5px solid rgba(255,255,255,0.3);
+      color: var(--text-hdr);
+      border-radius: 9999px;
+      padding: 0.32rem 0.95rem;
+      cursor: pointer;
+      display: flex; align-items: center; gap: 0.45rem;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+    .sq-audio-btn.on { background: #16a34a; border-color: #15803d; }
+    .sq-clock {
+      font-family: var(--font);
+      font-size: 1.65rem;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      color: #fff;
+      white-space: nowrap;
+      margin-left: 0.3rem;
+      background: rgba(0,0,0,0.18);
+      padding: 0.2rem 0.75rem;
+      border-radius: 8px;
+    }
+
+    /* ── Audio Banner ─────────────────────────────────────────────── */
+    #audioBanner {
+      position: fixed; top: 62px; left: 50%; transform: translateX(-50%);
+      z-index: 10000;
+      background: #f59e0b; color: #1c1917;
+      padding: 0.55rem 1.5rem;
+      border-radius: 9999px;
+      font-family: var(--font);
+      font-weight: 700; font-size: 1.1rem;
+      box-shadow: 0 6px 18px rgba(245,158,11,0.4);
+      cursor: pointer;
+      display: flex; align-items: center; gap: 0.7rem;
+      animation: pulseB 2s ease-in-out infinite;
+    }
+    @keyframes pulseB {
+      0%,100% { box-shadow:0 6px 18px rgba(245,158,11,0.35); }
+      50%      { box-shadow:0 6px 28px rgba(245,158,11,0.7);  }
+    }
+
+    /* ── Layout Root ──────────────────────────────────────────────── */
+    #layoutRoot { flex:1; overflow:hidden; display:flex; }
+
+    /* ── Marquee Footer (Gold Animated Gradient matching Image 2) ─── */
+    /* ── Marquee Footer (Gold Animated Gradient matching Image 2) ─── */
+    .sq-footer {
+      background: linear-gradient(270deg, #c09f3c, #f7e8a9, #c09f3c);
+      background-size: 200% 200%;
+      animation: shimmerGold 8s ease infinite;
+      color: #382c0e;
+      font-family: var(--font);
+      font-size: 1.85rem;
+      font-weight: 800;
+      padding: 0.65rem 1.4rem;
+      overflow: hidden;
+      white-space: nowrap;
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 -3px 14px rgba(0,0,0,0.15);
+      z-index: 100;
+    }
+    @keyframes shimmerGold {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .sq-marquee-container {
+      flex: 1;
+      overflow: hidden;
+      white-space: nowrap;
+    }
+    .sq-marquee {
+      display: inline-block;
+      padding-left: 100%;
+      animation: marqAnim 35s linear infinite;
+    }
+    @keyframes marqAnim {
+      from { transform: translateX(0); }
+      to   { transform: translateX(-100%); }
+    }
+    .sq-footer-logo {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      margin-left: 1.8rem;
+      flex-shrink: 0;
+      font-family: var(--font);
+      font-weight: 800;
+      font-size: 1.7rem;
+      color: #ffffff;
+      text-shadow: 0 1px 5px rgba(0,0,0,0.7);
+    }
+    .sq-footer-logo img {
+      height: 48px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    /* ── Call Popup (Legacy Style matching Image 1 + Patient Name) ──── */
+    #callPopup {
+      position: fixed; inset: 0;
+      background: rgba(0, 0, 0, 0.72);
+      backdrop-filter: blur(5px);
+      z-index: 99999;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+      transform: scale(1.04);
+      padding: 1rem;
+    }
+    #callPopup.show {
+      opacity: 1; pointer-events: auto;
+      transform: scale(1.0);
+    }
+    .sq-popup-card-legacy {
+      width: 86vw;
+      max-width: 1200px;
+      background: #dd4b39;
+      border-radius: 16px;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.65);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      text-align: center;
+      color: #ffffff;
+      animation: popZoom 0.28s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    }
+    @keyframes popZoom {
+      0% { transform: scale(0.85); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .popup-qnum-part {
+      background: #dd4b39;
+      padding: 2.2vh 1rem 0.4vh;
+      font-family: var(--font);
+      font-size: min(20vw, 14rem);
+      font-weight: 900;
+      color: #ffffff;
+      line-height: 1;
+      letter-spacing: 4px;
+      text-shadow: 0 6px 20px rgba(0,0,0,0.3);
+    }
+    .popup-name-part {
+      background: #dd4b39;
+      padding: 0.4vh 1.5rem 2vh;
+      font-family: var(--font);
+      font-size: min(5.5vw, 4.2rem);
+      font-weight: 700;
+      color: #fff9db;
+      letter-spacing: 0.5px;
+      text-shadow: 0 3px 12px rgba(0,0,0,0.45);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.2;
+    }
+    .popup-dest-part {
+      background: #c23321;
+      padding: 2vh 1.5rem;
+      font-family: var(--font);
+      font-size: min(6vw, 4.4rem);
+      font-weight: 800;
+      color: #ffffff;
+      letter-spacing: 1px;
+      text-shadow: 0 3px 10px rgba(0,0,0,0.3);
+      border-top: 3px solid rgba(255,255,255,0.18);
+    }
+
+    /* ── Shared panel/list styles (Modern & Elegant Hospital Style) ──── */
+    .sq-panel {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: var(--shadow);
+    }
+    .sq-panel-header {
+      background: var(--panel-hdr-bg);
+      color: #ffffff;
+      padding: 0.75rem 1.2rem;
+      font-family: var(--font);
+      font-weight: 700;
+      font-size: 1.35rem;
+      border-bottom: 2px solid rgba(0,0,0,0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-radius: 15px 15px 0 0;
+    }
+    .sq-badge {
+      font-family: var(--font);
+      background: rgba(255,255,255,0.25);
+      border: 1px solid rgba(255,255,255,0.4);
+      color: #fff;
+      font-size: 1.05rem;
+      font-weight: 700;
+      padding: 0.2rem 0.85rem;
+      border-radius: 9999px;
+    }
+    /* ★ หัวตาราง (Table Head): สีเทาอ่อน สะอาด อ่านง่าย */
+    .sq-col-hdr {
+      display: flex;
+      padding: 0.45rem 1.2rem;
+      background: #f1f3f5;
+      border-bottom: 2px solid #dee2e6;
+      font-family: var(--font);
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: #495057;
+    }
+    [data-theme="dark"] .sq-col-hdr {
+      background: #1e293b;
+      border-color: #334155;
+      color: #94a3b8;
+    }
+    /* ★ แถวของคิว (Queue Item): โค้งมน แยกช่องชัดเจน */
+    .sq-q-row {
+      display: flex;
+      align-items: center;
+      padding: 0.65rem 1.1rem;
+      margin: 4px 8px;
+      border-radius: 8px;
+      border: 1px solid #e9ecef;
+      background: #ffffff;
+      font-family: var(--font);
+      font-size: 1.25rem;
+      font-weight: 600;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+    .sq-q-row:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .sq-q-row:nth-child(even) { background: var(--stripe); }
+    [data-theme="dark"] .sq-q-row {
+      background: #1e293b;
+      border-color: #334155;
+      color: #f1f5f9;
+    }
+    [data-theme="dark"] .sq-q-row:nth-child(even) { background: #172033; }
+
+    .sq-q-tag {
+      font-family: var(--font);
+      background: #e3fafc;
+      color: #0b7285;
+      border: 1px solid #c5f6fa;
+      font-weight: 800;
+      font-size: 1.35rem;
+      padding: 0.2rem 0.85rem;
+      border-radius: 6px;
+      margin-right: 0.85rem;
+      min-width: 75px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    [data-theme="dark"] .sq-q-tag { background:#1e3a8a; color:#93c5fd; border-color:#2563eb; }
+
+    .sq-wait-muted {
+      font-family: var(--font);
+      font-size: 1.05rem;
+      color: var(--text-muted);
+      margin-left: auto;
+      flex-shrink: 0;
+    }
+
+    /* ── กล่องจุดให้บริการ (Called Desk Box) สไตล์ระบบเดิม ─────────── */
+    .sq-called-box {
+      background: var(--called-bg);
+      border: 2px solid var(--called-bdr);
+      border-radius: 12px;
+      overflow: hidden;
+      margin: 0.35rem 0.2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+      transition: all 0.2s ease;
+    }
+    .sq-called-box-hdr {
+      background: #f76707;
+      color: #ffffff;
+      padding: 0.45rem 0.9rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: var(--font);
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .sq-called-box-body {
+      padding: 0.6rem 0.9rem;
+      background: var(--bg-card);
+      font-family: var(--font);
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sq-called-q-badge {
+      background: #ffffff;
+      color: #f76707;
+      padding: 0.1rem 0.65rem;
+      border-radius: 6px;
+      font-weight: 900;
+      font-size: 1.4rem;
+      letter-spacing: 1px;
+    }
+    [data-theme="dark"] .sq-called-box-hdr { background: #d97706; }
+    [data-theme="dark"] .sq-called-q-badge { background: #1e293b; color: #fbbf24; }
+
+    /* Flash / Blink แบบระบบเดิม */
+    .sq-called-box.flash { animation: flashDesk 0.65s 6; }
+    @keyframes flashDesk {
+      0%, 100% { background: var(--called-bg); color: inherit; }
+      50%      { background: #ffffff !important; border-color: #000000; box-shadow: 0 0 16px rgba(0,0,0,0.3); }
+    }
+    .sq-called-q    { font-family:var(--font); font-size:2.2rem; font-weight:800; color:var(--accent2); letter-spacing:2px; }
+    .sq-called-name { font-family:var(--font); font-size:1.15rem; font-weight:700; color:var(--text); }
+    .sq-table-label { font-family:var(--font); font-size:1.15rem; font-weight:700; color:var(--text); }
+
+    /* ซ่อน Scrollbar ทุกเบราว์เซอร์สำหรับตารางเลื่อนไหลอัตโนมัติ */
+    [class*="list-body"], [class*="scroll-body"], .sa-scroll-body, .doc-list-body, .rx-scroll-body, .den-list-body, .treat-list-body {
+      scrollbar-width: none !important;
+      -ms-overflow-style: none !important;
+    }
+    [class*="list-body"]::-webkit-scrollbar, [class*="scroll-body"]::-webkit-scrollbar, .sa-scroll-body::-webkit-scrollbar, .doc-list-body::-webkit-scrollbar, .rx-scroll-body::-webkit-scrollbar, .den-list-body::-webkit-scrollbar, .treat-list-body::-webkit-scrollbar {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ Header ════════════════════════════════════════════════════════ -->
+  <header class="sq-hdr">
+    <div class="sq-hdr-left">
+      <img src="/img/PH.png" alt="Hospital Logo" class="sq-hosp-logo" onerror="this.style.display='none'; document.getElementById('sqHdrIcon').style.display='flex';">
+      <div class="sq-hdr-icon" id="sqHdrIcon" style="display:none;"><i class="fa-solid fa-hospital-user"></i></div>
+      <div class="sq-hdr-titles">
+        <div class="sq-station-title" id="stationNameDisplay">กำลังโหลด...</div>
+        <div class="sq-hosp-subname" id="hospitalNameDisplay">โรงพยาบาลแม่ทะ</div>
+      </div>
+    </div>
+    <div class="sq-hdr-right">
+      <button class="sq-theme-btn" id="themeToggleBtn" onclick="cycleTheme()" title="คลิกเพื่อสลับโหมด: อัตโนมัติ / สว่าง / มืด">
+        <span id="themeToggleIcon">⏰</span> <span id="themeToggleText">อัตโนมัติ</span>
+      </button>
+      <button class="sq-audio-btn" id="btnAudio" onclick="unlockAudio(true)">
+        <i class="fa-solid fa-volume-xmark" id="audioIcon"></i>
+        <span id="audioText">เปิดเสียง</span>
+      </button>
+      <div class="sq-clock" id="clockDisplay">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- Audio Banner -->
+  <div id="audioBanner" onclick="unlockAudio(true)">
+    <i class="fa-solid fa-bell fa-shake"></i>
+    <span>คลิก 1 ครั้ง เพื่อเปิดระบบเสียงเรียกคิว</span>
+  </div>
+
+  <!-- Layout Area -->
+  <div id="layoutRoot">
+    <div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;">
+      <div style="text-align:center;color:var(--text-muted);">
+        <i class="fa-solid fa-spinner fa-spin" style="font-size:3rem;"></i>
+        <div style="margin-top:1rem;font-size:1.4rem;font-family:var(--font);">กำลังโหลด...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Marquee Footer -->
+  <footer class="sq-footer">
+    <div class="sq-marquee-container">
+      <span class="sq-marquee" id="marqueeText">กรุณารอเรียกชื่อตามคิวซักประวัติของท่าน - ขณะรอตรวจหากมีอาการ หน้ามืด เป็นลม เหงื่อออก กรุณาแจ้งพยาบาล</span>
+    </div>
+    <div class="sq-footer-logo">
+      <img src="/img/moph.png" alt="MOPH Logo" onerror="this.src='/img/PH.png'">
+      <span>โรงพยาบาลแม่ทะ</span>
+    </div>
+  </footer>
+
+  <!-- Call Popup (Legacy Red Card Style as in Image 1 + Patient Name) -->
+  <div id="callPopup" onclick="this.classList.remove('show')">
+    <div class="sq-popup-card-legacy">
+      <div class="popup-qnum-part" id="popupQNum">-</div>
+      <div class="popup-name-part" id="popupQName">เชิญรับบริการ</div>
+      <div class="popup-dest-part" id="popupDept">โต๊ะซักประวัติ</div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script type="module">
+    const urlParams  = new URLSearchParams(window.location.search);
+    const stationId  = urlParams.get('station') || 'sa1';
+    const isKiosk    = urlParams.get('kiosk') === '1';
+
+    // Kiosk mode: ซ่อน UI controls, ล็อก cursor, auto fullscreen
+    if (isKiosk) {
+      document.documentElement.style.setProperty('--kiosk-cursor', 'none');
+      const style = document.createElement('style');
+      style.textContent = `
+        * { cursor: none !important; }
+        .theme-controls, #btnAudio, #audioBanner { display: none !important; }
+      `;
+      document.head.appendChild(style);
+
+      // Auto fullscreen เมื่อหน้าจอถูก click (browsers require user gesture)
+      document.addEventListener('click', () => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }, { once: true });
+
+      // ถ้าเป็น Android Box: พยายาม fullscreen อัตโนมัติหลัง 2 วินาที
+      setTimeout(() => {
+        if (!document.fullscreenElement) {
+          document.documentElement.requestFullscreen().catch(() => {});
+        }
+      }, 2000);
+
+      // Unlock audio อัตโนมัติใน kiosk mode
+      document.addEventListener('click', () => {
+        if (!audioUnlocked) unlockAudio(false);
+      }, { once: true });
+    }
+
+    let stationConfig = null;
+    let socket        = null;
+    let audioUnlocked = false;
+    let audioCtx      = null;
+    let currentAudio  = null;
+    let autoTimer     = null;
+
+    /* ── Theme ─────────────────────────────────────────────────────── */
+    const THEME_KEY = 'sq_theme_' + stationId;
+    const DAY_START = 7, DAY_END = 18;
+    const THEME_CONFIG = {
+      auto:  { icon: '⏰', text: 'อัตโนมัติ' },
+      light: { icon: '☀️', text: 'สว่าง' },
+      dark:  { icon: '🌙', text: 'มืด' }
+    };
+    const THEME_CYCLE = ['auto', 'light', 'dark'];
+
+    function applyTheme(mode) {
+      if (!THEME_CONFIG[mode]) mode = 'auto';
+      const cfg = THEME_CONFIG[mode];
+      const iconEl = document.getElementById('themeToggleIcon');
+      const textEl = document.getElementById('themeToggleText');
+      if (iconEl) iconEl.textContent = cfg.icon;
+      if (textEl) textEl.textContent = cfg.text;
+
+      if (mode === 'auto') {
+        applyAutoTheme();
+        if (!autoTimer) autoTimer = setInterval(applyAutoTheme, 60000);
+      } else {
+        if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+        document.documentElement.setAttribute('data-theme', mode);
+      }
+      localStorage.setItem(THEME_KEY, mode);
+    }
+
+    function cycleTheme() {
+      const current = localStorage.getItem(THEME_KEY) || 'auto';
+      const idx = THEME_CYCLE.indexOf(current);
+      const next = THEME_CYCLE[(idx + 1) % THEME_CYCLE.length];
+      applyTheme(next);
+    }
+    window.cycleTheme = cycleTheme;
+    window.setTheme = applyTheme;
+
+    function applyAutoTheme() {
+      const h = new Date().getHours();
+      document.documentElement.setAttribute('data-theme',
+        (h >= DAY_START && h < DAY_END) ? 'light' : 'dark');
+    }
+    // ค่าเริ่มต้นเป็น 'auto'
+    applyTheme(localStorage.getItem(THEME_KEY) || 'auto');
+
+    /* ── Universal Auto-Scroll Helper for all departments ───────────── */
+    window.initAutoScroll = function(target) {
+      const el = (typeof target === 'string') ? document.getElementById(target) : target;
+      if (!el) return;
+      if (el._autoScrollTimer) clearInterval(el._autoScrollTimer);
+
+      let direction = 1; // 1: ลง, -1: ขึ้น
+      let pauseUntil = Date.now() + 6000; // หยุดรอ 6 วินาทีแรกที่ด้านบน
+
+      el._autoScrollTimer = setInterval(() => {
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll <= 8) {
+          el.scrollTop = 0;
+          return;
+        }
+        if (Date.now() < pauseUntil) return;
+
+        if (direction === 1) {
+          el.scrollTop += 1.2;
+          if (el.scrollTop >= maxScroll - 2) {
+            el.scrollTop = maxScroll;
+            direction = -1;
+            pauseUntil = Date.now() + 4500; // พักที่ด้านล่าง 4.5 วินาที
+          }
+        } else {
+          el.scrollTop -= 2.2;
+          if (el.scrollTop <= 2) {
+            el.scrollTop = 0;
+            direction = 1;
+            pauseUntil = Date.now() + 6000; // พักที่ด้านบน 6 วินาที
+          }
+        }
+      }, 35);
+    };
+
+    // Auto-detect and attach auto-scroll to any overflowing list in #layoutRoot
+    function checkAllOverflowLists() {
+      const candidates = document.querySelectorAll('#layoutRoot [id*="List"], #layoutRoot [class*="list-body"], #layoutRoot [class*="scroll-body"], #layoutRoot .sq-panel > div:last-child');
+      candidates.forEach(el => {
+        if (el && el.scrollHeight > el.clientHeight + 10) {
+          if (!el._autoScrollTimer) {
+            window.initAutoScroll(el);
+          }
+        }
+      });
+    }
+    setInterval(checkAllOverflowLists, 3500);
+
+    /* ── Clock ─────────────────────────────────────────────────────── */
+    function tick() {
+      document.getElementById('clockDisplay').textContent =
+        new Date().toLocaleTimeString('th-TH');
+    }
+    setInterval(tick, 1000); tick();
+
+    /* ── Audio Unlock ──────────────────────────────────────────────── */
+    window.unlockAudio = function(playTest = false) {
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      audioUnlocked = true;
+      document.getElementById('audioBanner').style.display = 'none';
+      const btn = document.getElementById('btnAudio');
+      btn.classList.add('on');
+      document.getElementById('audioIcon').className = 'fa-solid fa-volume-high';
+      document.getElementById('audioText').textContent  = 'เสียงเปิดอยู่ 🔊';
+      if (playTest) playDingDong(() => playSpeech('ทดสอบระบบเสียงเรียกคิว โรงพยาบาลแม่ทะ ค่ะ'));
+    };
+    window.addEventListener('click', () => { if (!audioUnlocked) unlockAudio(false); });
+
+    /* ── Ding-Dong ─────────────────────────────────────────────────── */
+    function playDingDong(onEnd) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const t = audioCtx.currentTime;
+        [[659.25, t, t+0.65], [523.25, t+0.3, t+1.15]].forEach(([f, s, e]) => {
+          const osc  = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'sine';
+          osc.frequency.setValueAtTime(f, s);
+          gain.gain.setValueAtTime(0.45, s);
+          gain.gain.exponentialRampToValueAtTime(0.001, e);
+          osc.connect(gain); gain.connect(audioCtx.destination);
+          osc.start(s); osc.stop(e);
+        });
+        if (typeof onEnd === 'function') setTimeout(onEnd, 750);
+      } catch(err) { if (typeof onEnd === 'function') onEnd(); }
+    }
+
+    /* ── TTS ────────────────────────────────────────────────────────── */
+
+    function playSpeech(sentence, onEnd) {
+      if (!sentence) {
+        if (typeof onEnd === 'function') onEnd();
+        return;
+      }
+      if (currentAudio) {
+        try { currentAudio.pause(); } catch(e) {}
+        currentAudio = null;
+      }
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+
+      let finished = false;
+      let safetyTimer = null;
+      const done = () => {
+        if (finished) return;
+        finished = true;
+        if (safetyTimer) clearTimeout(safetyTimer);
+        currentAudio = null;
+        if (typeof onEnd === 'function') onEnd();
+      };
+
+      // Safety timeout สูงสุด 18 วินาทีต่อ 1 ประโยค เพื่อป้องกันคิวสะดุดหรือค้าง
+      safetyTimer = setTimeout(done, 18000);
+
+      const currentVoice = localStorage.getItem('sq_display_voice') || 'premwadee';
+      const audio = new Audio(`/api/tts?text=${encodeURIComponent(sentence)}&voice=${encodeURIComponent(currentVoice)}`);
+      currentAudio = audio;
+
+      audio.onended = done;
+      audio.onerror = () => {
+        console.warn('Audio playback error, falling back to Web Speech API...');
+        if ('speechSynthesis' in window) {
+          try {
+            const u = new SpeechSynthesisUtterance(sentence);
+            u.lang = 'th-TH';
+            u.rate = 0.8;
+            u.onend = done;
+            u.onerror = done;
+            window.speechSynthesis.speak(u);
+          } catch(err) {
+            done();
+          }
+        } else {
+          done();
+        }
+      };
+
+      audio.play().catch((err) => {
+        console.warn('audio.play() failed:', err);
+        audio.onerror();
+      });
+    }
+
+    /* ── Phonetic & Speech Helpers ──────────────────────────────────── */
+    const THAI_LETTER_MAP = {
+      'A': 'เอ', 'B': 'บี', 'C': 'ซี', 'D': 'ดี', 'E': 'อี',
+      'F': 'เอฟ', 'G': 'จี', 'H': 'เอช', 'I': 'ไอ', 'J': 'เจ',
+      'K': 'เค', 'L': 'แอล', 'M': 'เอ็ม', 'N': 'เอ็น', 'O': 'โอ',
+      'P': 'พี', 'Q': 'คิว', 'R': 'อาร์', 'S': 'เอส', 'T': 'ที',
+      'U': 'ยู', 'V': 'วี', 'W': 'ดับเบิ้ลยู', 'X': 'เอ็กซ์', 'Y': 'วาย', 'Z': 'แซด'
+    };
+
+    const THAI_DIGIT_MAP = {
+      '0': 'ศูนย์', '1': 'หนึ่ง', '2': 'สอง', '3': 'สาม', '4': 'สี่',
+      '5': 'ห้า', '6': 'หก', '7': 'เจ็ด', '8': 'แปด', '9': 'เก้า'
+    };
+
+    function formatSpokenQueue(queueId) {
+      if (!queueId) return '';
+      const str = queueId.toString().trim().toUpperCase();
+      const tokens = [];
+      for (const ch of str) {
+        if (THAI_LETTER_MAP[ch]) tokens.push(THAI_LETTER_MAP[ch]);
+        else if (THAI_DIGIT_MAP[ch]) tokens.push(THAI_DIGIT_MAP[ch]);
+        else if (/[A-Z0-9ก-๙]/i.test(ch)) tokens.push(ch);
+      }
+      return tokens.join(' ');
+    }
+
+    function formatSpokenPatient(ttsName, patientName) {
+      let name = (ttsName || patientName || '').toString().trim();
+      if (!name || name === '-' || name === 'เชิญรับบริการ') return '';
+      name = name.replace(/\*+/g, '').trim();
+      if (!name) return '';
+
+      const titleRegex = /^(นางสาว|น\.ส\.|เด็กชาย|เด็กหญิง|ด\.ช\.|ด\.ญ\.|พระครู|พระมหา|สามเณร|นาย|นาง|คุณ|พระ)\s*/i;
+      const match = name.match(titleRegex);
+      let title = 'คุณ';
+      let rest = name;
+      if (match) {
+        title = match[1];
+        rest = name.slice(match[0].length).trim();
+        if (title === 'ด.ช.') title = 'เด็กชาย';
+        else if (title === 'ด.ญ.') title = 'เด็กหญิง';
+        else if (title === 'น.ส.') title = 'นางสาว';
+      }
+
+      const nameParts = rest.split(/\s+/).filter(Boolean);
+      if (nameParts.length >= 2) {
+        const fname = nameParts[0];
+        const lname = nameParts.slice(1).join(' ');
+        return `${title} ${fname} , ${lname}`;
+      } else if (nameParts.length === 1) {
+        return `${title} ${nameParts[0]}`;
+      }
+      return '';
+    }
+
+    function formatSpokenPlace(ttsTarget, stationLabel) {
+      let place = (ttsTarget || stationLabel || '').toString().trim();
+      if (!place) return 'ที่จุดบริการ';
+      place = place.replace(/^เข้า\s*/, '');
+      if (!place.startsWith('ที่')) {
+        place = 'ที่ ' + place;
+      }
+      return place.trim();
+    }
+
+    function buildCallSentence({ queueId, patientName, ttsName, ttsTarget, stationLabel }) {
+      const spokenQ = formatSpokenQueue(queueId);
+      const spokenPatient = formatSpokenPatient(ttsName, patientName);
+      const spokenPlace = formatSpokenPlace(ttsTarget, stationLabel);
+
+      const parts = ['ขอเชิญหมายเลข'];
+      if (spokenQ) parts.push(spokenQ);
+      if (spokenPatient) parts.push(spokenPatient);
+      if (spokenPlace) parts.push(spokenPlace);
+
+      return parts.join(' , ') + ' ค่ะ';
+    }
+
+    /* ── Call Queue Manager (FIFO) ──────────────────────────────────── */
+    const callQueue = [];
+    let isProcessingQueue = false;
+    let popupTimer = null;
+    let lastCallEndTime = 0;
+    const CALL_INTERVAL_MS = 1200; // เว้นช่วง 1.2 วินาที ก่อนเรียกคิวถัดไป ป้องกันเสียงแทรก
+
+    window.showCallPopup = function(queueId, patientName, stationLabel, ttsName, ttsTarget, ttsSentence) {
+      if (!queueId) return;
+
+      const now = Date.now();
+      // ป้องกันการกดย้ำซ้ำๆ ของคิวและโต๊ะเดียวกันภายใน 1.5 วินาที
+      const isDuplicate = callQueue.some(item =>
+        item.queueId === queueId &&
+        (item.stationLabel === stationLabel || item.ttsTarget === ttsTarget) &&
+        (now - item.time < 1500)
+      );
+      if (isDuplicate) return;
+
+      // เพิ่มเข้าคิวรอเรียกตามลำดับ
+      callQueue.push({
+        queueId,
+        patientName,
+        stationLabel,
+        ttsName,
+        ttsTarget,
+        ttsSentence,
+        time: now
+      });
+
+      // ถ้าไม่มีคิวที่กำลังอ่านอยู่ ให้เริ่มเรียกคิวแรก
+      if (!isProcessingQueue) {
+        processNextCall();
+      }
+    };
+
+    function processNextCall() {
+      if (callQueue.length === 0) {
+        isProcessingQueue = false;
+        return;
+      }
+
+      isProcessingQueue = true;
+      const currentCall = callQueue.shift();
+
+      // คำนวณระยะเวลาที่ต้องเว้นช่วงนับจากเสียงคิวก่อนหน้าเสร็จสมบูรณ์
+      const elapsed = Date.now() - lastCallEndTime;
+      const delay = (lastCallEndTime > 0 && elapsed < CALL_INTERVAL_MS)
+        ? (CALL_INTERVAL_MS - elapsed)
+        : 0;
+
+      setTimeout(() => {
+        const qUp = (currentCall.queueId || '').toUpperCase();
+        const placeText = currentCall.ttsTarget || currentCall.stationLabel || stationConfig?.name || 'จุดให้บริการ';
+        const deptEl = document.getElementById('popupDept');
+        if (deptEl) deptEl.textContent = placeText;
+        const qNumEl = document.getElementById('popupQNum');
+        if (qNumEl) qNumEl.textContent = qUp;
+        const nameEl = document.getElementById('popupQName');
+        if (nameEl) nameEl.textContent = (currentCall.patientName && currentCall.patientName !== '-') ? currentCall.patientName : 'เชิญรับบริการ';
+
+        if (popupTimer) {
+          clearTimeout(popupTimer);
+          popupTimer = null;
+        }
+        document.getElementById('callPopup').classList.add('show');
+
+        // สร้างประโยคเรียกคิว
+        const sentence = currentCall.ttsSentence || buildCallSentence({
+          queueId: currentCall.queueId,
+          patientName: currentCall.patientName,
+          stationLabel: currentCall.stationLabel || stationConfig?.name,
+          ttsName: currentCall.ttsName,
+          ttsTarget: currentCall.ttsTarget
+        });
+
+        // เล่นเสียง Ding-Dong ก่อน แล้วตามด้วยเสียงเรียกคิวจนจบ
+        playDingDong(() => {
+          playSpeech(sentence, () => {
+            lastCallEndTime = Date.now();
+
+            if (callQueue.length > 0) {
+              // ถ้ายังมีคิวถัดไปรออยู่: ปิด popup คิวก่อนหน้า แล้วเริ่มประมวลผลคิวถัดไป
+              document.getElementById('callPopup').classList.remove('show');
+              processNextCall();
+            } else {
+              // ถ้าไม่มีคิวค้างแล้ว: ให้ popup แสดงต่ออีก 3 วินาทีเพื่อให้ผู้ป่วยมองเห็น จากนั้นปิด
+              popupTimer = setTimeout(() => {
+                document.getElementById('callPopup').classList.remove('show');
+                popupTimer = null;
+              }, 3000);
+              isProcessingQueue = false;
+            }
+          });
+        });
+      }, delay);
+    }
+
+    /* ── Marquee ────────────────────────────────────────────────────── */
+    async function fetchMarquee() {
+      try {
+        const res  = await fetch('/api/marquee?stationId=' + encodeURIComponent(stationId));
+        const data = await res.json();
+        if (data.marquee) document.getElementById('marqueeText').textContent = data.marquee;
+      } catch(e) {}
+    }
+
+    /* ── Init ───────────────────────────────────────────────────────── */
+    async function initDisplay() {
+      try {
+        // Load station config
+        const res = await fetch('/api/stations/' + encodeURIComponent(stationId));
+        stationConfig = await res.json();
+        document.getElementById('stationNameDisplay').textContent = stationConfig.name || stationId;
+        document.title = (stationConfig.name || stationId) + ' — Smart Queue';
+
+        // Load hospital name from settings
+        fetch('/api/settings').then(r => r.json()).then(d => {
+          const name = d.settings?.hospital_name;
+          if (name) document.getElementById('hospitalNameDisplay').textContent = name;
+        }).catch(() => {});
+
+        // Load layout
+        const layoutType = stationConfig.layout || 'default';
+        const root = document.getElementById('layoutRoot');
+        try {
+          const mod = await import('./layouts/' + layoutType + '.js');
+          if (mod?.mountLayout) mod.mountLayout(root, stationConfig);
+        } catch(e) {
+          console.warn('Layout not found:', layoutType, '→ default');
+          const m = await import('./layouts/default.js');
+          m.mountLayout(root, stationConfig);
+        }
+
+        // Socket
+        socket = io();
+        socket.emit('join_display', { stationId });
+        socket.on('queue_called', (data) => {
+          window.showCallPopup(data.queueId, data.patientName, data.stationLabel, data.ttsName, data.ttsTarget, data.ttsSentence);
+          window.dispatchEvent(new CustomEvent('sq_queue_called', { detail: data }));
+        });
+        socket.on('queue_refresh', () => {
+          window.dispatchEvent(new CustomEvent('sq_queue_refresh'));
+        });
+
+        // Marquee
+        fetchMarquee();
+        setInterval(fetchMarquee, 120000);
+
+      } catch(err) {
+        console.error('initDisplay error:', err);
+        document.getElementById('layoutRoot').innerHTML = `
+          <div style="display:flex;width:100%;height:100%;align-items:center;justify-content:center;flex-direction:column;gap:1rem;font-family:var(--font);">
+            <i class="fa-solid fa-circle-exclamation" style="font-size:3rem;color:var(--accent2);"></i>
+            <div style="font-size:1.4rem;font-weight:700;">ไม่พบจุดบริการ: <b>${stationId}</b></div>
+            <div style="color:var(--text-muted);">กรุณาตรวจสอบ Station ID</div>
+          </div>
+        `;
+      }
+    }
+
+    initDisplay();
+  </script>
+</body>
+</html>
