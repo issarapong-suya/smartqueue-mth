@@ -443,6 +443,47 @@
       let pendingNameForRoom = null;
       let pendingVnForRoom = null;
 
+      // ตรวจสอบ station จาก URL Query Param ก่อน เช่น ?station=sa1 หรือ ?station=t
+      const callerUrlParams = new URLSearchParams(window.location.search);
+      const urlStationParam = callerUrlParams.get("station");
+
+      if (urlStationParam) {
+        const rawStation = urlStationParam.trim();
+        // ตรวจสอบว่าลงท้ายด้วยตัวเลขสำหรับแผนกที่มีโต๊ะย่อย เช่น sa1, sb2, rx3 หรือไม่
+        const match = rawStation.match(/^([a-zA-Z]+)(\d+)$/);
+        let targetStationId = rawStation;
+        let targetDeskNum = null;
+
+        if (match) {
+          const prefix = match[1].toLowerCase();
+          const num = parseInt(match[2]);
+          if (["sa", "sb", "er", "rx"].includes(prefix)) {
+            targetStationId = prefix;
+            targetDeskNum = num;
+          }
+        }
+
+        currentStationId = targetStationId;
+        localStorage.setItem("sq_station_id", currentStationId);
+
+        if (targetDeskNum) {
+          localStorage.setItem("sq_desk_number_" + currentStationId, targetDeskNum);
+        }
+
+        // ดึงชื่อแผนกอัตโนมัติ
+        fetch(`/api/stations/${encodeURIComponent(currentStationId)}`)
+          .then((r) => (r.ok ? r.json() : null))
+          .then((st) => {
+            if (st && st.name) {
+              currentStationName = st.name;
+              localStorage.setItem("sq_station_name", st.name);
+              const nameEl = document.getElementById("stationNameDisplay");
+              if (nameEl) nameEl.innerText = st.name;
+            }
+          })
+          .catch(() => {});
+      }
+
       // ตรวจสอบ station ใน localStorage
       if (!currentStationId) {
         window.location.href = "setup.html";

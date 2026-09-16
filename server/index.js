@@ -88,16 +88,40 @@ app.get('/:station/:q', async (req, res, next) => {
   }
 });
 
-// ── TV Kiosk Routes ──────────────────────────────────────────────────────
-// เปิดที่ http://[server]:19010/tv          → เลือกแผนก
-// เปิดที่ http://[server]:19010/tv/sa       → จอรวมซักประวัติ (kiosk)
-// เปิดที่ http://[server]:19010/tv/sb       → จอรวมห้องตรวจแพทย์ (kiosk)
+// ── Pretty URLs ──────────────────────────────────────────────────────────
+// 1. TV Kiosk Routes (เต็มจอ, Kiosk Mode เหมาะสำหรับ Android Box / ทีวี)
+// เช่น /tv/t, /tv/d, /tv/er, /tv/sb, /tv/sa, /tv/rx
 app.get('/tv', (req, res) => {
   res.redirect('/tv/');
 });
 app.get('/tv/:station', (req, res) => {
   const station = req.params.station;
-  res.redirect(`/display/screen.html?station=${station}&kiosk=1`);
+  res.redirect(`/display/screen.html?station=${encodeURIComponent(station)}&kiosk=1`);
+});
+
+// 2. Display / Screen Routes (จอทั่วไป มีแถบควบคุมด้านบน)
+// เช่น /screen/t หรือ /display/t
+app.get('/screen/:station', (req, res) => {
+  const station = req.params.station;
+  res.redirect(`/display/screen.html?station=${encodeURIComponent(station)}`);
+});
+app.get('/display/:station', (req, res) => {
+  const station = req.params.station;
+  res.redirect(`/display/screen.html?station=${encodeURIComponent(station)}`);
+});
+
+// 3. Caller / Call Routes (หน้าเรียกคิวระบุจุดบริการหรือโต๊ะ)
+// เช่น /call/t, /call/d, /call/sa, /call/sa1, /call/sb, /call/sb2, /call/rx1
+app.get('/call', (req, res) => {
+  res.redirect('/caller/');
+});
+app.get('/call/:station', (req, res) => {
+  const station = req.params.station;
+  res.redirect(`/caller/?station=${encodeURIComponent(station)}`);
+});
+app.get('/caller/:station', (req, res) => {
+  const station = req.params.station;
+  res.redirect(`/caller/?station=${encodeURIComponent(station)}`);
 });
 
 // Root redirects

@@ -7,14 +7,74 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <style>
     body { font-family: 'Sarabun', sans-serif; background-color: #f8fafc; }
     .sidebar { width: 260px; min-height: 100vh; background: #1e293b; color: #fff; }
     .sidebar a { color: #94a3b8; text-decoration: none; padding: 0.75rem 1.25rem; display: flex; align-items: center; gap: 0.75rem; border-radius: 0.5rem; margin: 0.25rem 0.75rem; }
     .sidebar a:hover, .sidebar a.active { background: #334155; color: #fff; }
+    #adminAuthOverlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.96);
+      backdrop-filter: blur(8px);
+      z-index: 9999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .auth-card {
+      background: #ffffff;
+      border-radius: 1.25rem;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 420px;
+      overflow: hidden;
+      border: 1px solid #e2e8f0;
+      animation: zoomIn 0.25s ease-out;
+    }
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    .auth-hdr {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: #fff;
+      padding: 1.75rem 1.5rem 1.25rem;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
+
+  <!-- Admin Login Overlay -->
+  <div id="adminAuthOverlay">
+    <div class="auth-card">
+      <div class="auth-hdr">
+        <div class="display-6 mb-2"><i class="fa-solid fa-shield-halved"></i></div>
+        <h4 class="fw-bold mb-1">SmartQueue Admin</h4>
+        <div class="small opacity-75">โรงพยาบาลแม่ทะ จ.ลำปาง</div>
+      </div>
+      <div class="p-4">
+        <form id="adminLoginForm" onsubmit="handleAdminLogin(event)">
+          <div class="mb-3">
+            <label class="form-label fw-bold text-secondary">รหัสผ่านผู้ดูแลระบบ</label>
+            <div class="input-group">
+              <span class="input-group-text bg-light"><i class="fa-solid fa-lock text-muted"></i></span>
+              <input type="password" class="form-control form-control-lg fs-6" id="adminPasswordInput" placeholder="กรอก QUEUE_ADMIN_PASSWORD" required autofocus autocomplete="current-password">
+            </div>
+            <div class="form-text small text-muted mt-1">รหัสผ่านเดียวกันกับหน้าตั้งค่าจุดบริการ HOSxP</div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-lg w-100 fw-bold shadow-sm" id="btnAdminLogin">
+            <i class="fa-solid fa-arrow-right-to-bracket me-2"></i>เข้าสู่ระบบ
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
   <div class="d-flex">
     <!-- Sidebar -->
     <div class="sidebar p-3 d-flex flex-column justify-content-between">
@@ -27,8 +87,13 @@
           <a href="/display/screen.html?station=sa1" target="_blank"><i class="fa-solid fa-tv"></i>ดูจอแสดงผล (Display)</a>
         </nav>
       </div>
-      <div class="px-3 text-muted small">
-        โรงพยาบาลแม่ทะ จ.ลำปาง<br>ระบบ Smart Queue All-Web
+      <div>
+        <button class="btn btn-outline-danger btn-sm w-100 mb-3 fw-bold" onclick="logoutAdmin()">
+          <i class="fa-solid fa-right-from-bracket me-1"></i>ออกจากระบบ Admin
+        </button>
+        <div class="px-3 text-muted small">
+          โรงพยาบาลแม่ทะ จ.ลำปาง<br>ระบบ Smart Queue All-Web
+        </div>
       </div>
     </div>
 
@@ -76,10 +141,10 @@
           <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
         </div>
         <div class="modal-body">
-          <form id="stationForm">
+          <form id="stationForm" onsubmit="event.preventDefault(); saveStationForm();">
             <div class="mb-3">
               <label class="form-label fw-bold">รหัส Station ID (ภาษาอังกฤษ)</label>
-              <input type="text" class="form-control" id="formStationId" placeholder="เช่น sa1, rx1, d" required>
+              <input type="text" class="form-control" id="formStationId" placeholder="เช่น sa1, rx1, t, d" required>
             </div>
             <div class="mb-3">
               <label class="form-label fw-bold">ชื่อจุดบริการ</label>
@@ -95,13 +160,11 @@
                 <option value="screening">screening (ซักประวัติ: โต๊ะ 1-6 + รอ + ประวัติ)</option>
                 <option value="pharmacy">pharmacy (ห้องยา: รอชำระ + ช่องเรียก + รอรับยา)</option>
                 <option value="doctor">doctor (ห้องตรวจโรค: แพทย์ 1-6)</option>
-                <option value="er">er (ห้องฉุกเฉิน: 3 คอลัมน์ + กำลังรับ)</option>
+                <option value="dental">dental (ทันตกรรม: คิวรอ + กำลังบริการ + เรียกแล้ว)</option>
+                <option value="treatment">treatment (ห้องฉีดยา ทำแผล: ซ้ายรอ ขวาเรียกแล้ว)</option>
+                <option value="er">er (ห้องฉุกเฉิน: 3 คอลัมน์ + กำลังรับบริการ)</option>
                 <option value="default">default (ทั่วไป: คิวรอ + กำลังรับบริการ)</option>
               </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label fw-bold">รหัสผ่านยืนยัน (QUEUE_ADMIN_PASSWORD)</label>
-              <input type="password" class="form-control" id="formAdminPass" placeholder="กรอกรหัส Admin เพื่อบันทึก" required>
             </div>
           </form>
         </div>
@@ -116,6 +179,83 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     let modalInstance = null;
+    let savedAdminPassword = sessionStorage.getItem('sq_admin_authenticated_pass') || '';
+
+    // ตรวจสอบสถานะการเข้าสู่ระบบ
+    function checkAdminAuth() {
+      const overlay = document.getElementById('adminAuthOverlay');
+      if (savedAdminPassword) {
+        overlay.style.display = 'none';
+        loadAdminStations();
+      } else {
+        overlay.style.display = 'flex';
+        setTimeout(() => {
+          const inp = document.getElementById('adminPasswordInput');
+          if (inp) inp.focus();
+        }, 150);
+      }
+    }
+
+    // ยืนยันรหัสผ่านเข้าสู่ระบบ
+    async function handleAdminLogin(e) {
+      if (e) e.preventDefault();
+      const inp = document.getElementById('adminPasswordInput');
+      const pass = inp.value.trim();
+      if (!pass) return;
+
+      const btn = document.getElementById('btnAdminLogin');
+      btn.disabled = true;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>กำลังตรวจสอบ...';
+
+      try {
+        const res = await fetch('/api/auth/verify-admin', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ password: pass })
+        });
+        const data = await res.json();
+
+        if (res.ok && data.valid) {
+          savedAdminPassword = pass;
+          sessionStorage.setItem('sq_admin_authenticated_pass', pass);
+          document.getElementById('adminAuthOverlay').style.display = 'none';
+          Swal.fire({
+            icon: 'success',
+            title: 'เข้าสู่ระบบสำเร็จ',
+            text: 'ยินดีต้อนรับสู่ระบบจัดการ SmartQueue',
+            timer: 1500,
+            showConfirmButton: false
+          });
+          loadAdminStations();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'รหัสผ่านไม่ถูกต้อง',
+            text: data.error || 'กรุณาตรวจสอบ QUEUE_ADMIN_PASSWORD อีกครั้ง',
+            confirmButtonText: 'ตกลง'
+          });
+          inp.value = '';
+          inp.focus();
+        }
+      } catch (err) {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+          confirmButtonText: 'ตกลง'
+        });
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-arrow-right-to-bracket me-2"></i>เข้าสู่ระบบ';
+      }
+    }
+
+    function logoutAdmin() {
+      sessionStorage.removeItem('sq_admin_authenticated_pass');
+      savedAdminPassword = '';
+      document.getElementById('adminPasswordInput').value = '';
+      checkAdminAuth();
+    }
 
     async function loadAdminStations() {
       try {
@@ -138,7 +278,7 @@
             <td>${s.time_per_queue || 10} นาที</td>
             <td>${s.is_active ? '<span class="badge bg-success">เปิดใช้งาน</span>' : '<span class="badge bg-danger">ปิด</span>'}</td>
             <td class="text-end pe-4">
-              <a href="/display/screen.html?station=${s.id}" target="_blank" class="btn btn-sm btn-outline-info me-1" title="เปิดหน้าจอ">
+              <a href="/tv/${s.id}" target="_blank" class="btn btn-sm btn-outline-info me-1" title="เปิดหน้าจอ TV">
                 <i class="fa-solid fa-tv"></i>
               </a>
               <button class="btn btn-sm btn-outline-danger" onclick="deleteStation('${s.id}')" title="ลบ">
@@ -156,7 +296,6 @@
       document.getElementById('formStationId').value = '';
       document.getElementById('formStationName').value = '';
       document.getElementById('formStationDep').value = '';
-      document.getElementById('formAdminPass').value = '';
       document.getElementById('formStationId').readOnly = false;
       modalInstance = new bootstrap.Modal(document.getElementById('stationModal'));
       modalInstance.show();
@@ -167,10 +306,14 @@
       const name = document.getElementById('formStationName').value.trim();
       const depcodes = document.getElementById('formStationDep').value.trim();
       const layout = document.getElementById('formStationLayout').value;
-      const password = document.getElementById('formAdminPass').value.trim();
 
-      if (!id || !name || !password) {
-        alert('กรุณากรอกข้อมูลและรหัสผ่าน Admin ให้ครบถ้วน');
+      if (!id || !name) {
+        Swal.fire({
+          icon: 'warning',
+          title: 'กรุณากรอกข้อมูลให้ครบถ้วน',
+          text: 'ต้องระบุ Station ID และชื่อจุดบริการ',
+          confirmButtonText: 'ตกลง'
+        });
         return;
       }
 
@@ -178,40 +321,84 @@
         const res = await fetch('/api/admin/stations', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name, depcodes, layout, password })
+          body: JSON.stringify({ id, name, depcodes, layout, password: savedAdminPassword })
         });
         const d = await res.json();
         if (res.ok) {
           modalInstance.hide();
+          Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ',
+            timer: 1500,
+            showConfirmButton: false
+          });
           loadAdminStations();
         } else {
-          alert(d.error || 'เกิดข้อผิดพลาดในการบันทึก');
+          Swal.fire({
+            icon: 'error',
+            title: 'ไม่สามารถบันทึกได้',
+            text: d.error || 'เกิดข้อผิดพลาดในการบันทึก',
+            confirmButtonText: 'ตกลง'
+          });
         }
       } catch (e) {
-        alert('ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้');
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+          confirmButtonText: 'ตกลง'
+        });
       }
     }
 
     async function deleteStation(id) {
-      const password = prompt('กรุณากรอกรหัสผ่าน Admin (QUEUE_ADMIN_PASSWORD) เพื่อยืนยันการลบ:');
-      if (!password) return;
+      const result = await Swal.fire({
+        title: `ยืนยันการลบจุดบริการ [${id}]?`,
+        text: 'การลบจะมีผลต่อการแสดงผลของหน้าจอทันที',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#dc2626',
+        cancelButtonColor: '#64748b',
+        confirmButtonText: 'ใช่, ลบเลย',
+        cancelButtonText: 'ยกเลิก'
+      });
+
+      if (!result.isConfirmed) return;
 
       try {
         const res = await fetch(`/api/admin/stations/${id}`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ password })
+          body: JSON.stringify({ password: savedAdminPassword })
         });
         if (res.ok) {
+          Swal.fire({
+            icon: 'success',
+            title: 'ลบจุดบริการสำเร็จ',
+            timer: 1500,
+            showConfirmButton: false
+          });
           loadAdminStations();
         } else {
           const d = await res.json();
-          alert(d.error || 'ไม่สามารถลบได้');
+          Swal.fire({
+            icon: 'error',
+            title: 'ไม่สามารถลบได้',
+            text: d.error || 'เกิดข้อผิดพลาด',
+            confirmButtonText: 'ตกลง'
+          });
         }
-      } catch (e) {}
+      } catch (e) {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+          confirmButtonText: 'ตกลง'
+        });
+      }
     }
 
-    loadAdminStations();
+    checkAdminAuth();
   </script>
 </body>
 </html>
