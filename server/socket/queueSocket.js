@@ -99,6 +99,11 @@ function initQueueSocket(io) {
           stationLabel: payload.stationLabel
         });
 
+        // ⚡ Pre-warm TTS cache ในพื้นหลังทันที เพื่อให้พร้อมเล่นเมื่อหน้าจอร้องขอ
+        if (payload.ttsSentence) {
+          ttsService.getAudioBuffer(payload.ttsSentence).catch(() => {});
+        }
+
         // 1. ส่งให้จอแสดงผลรวมของแผนก (เช่น display:sa สำหรับ sa1-sa6)
         io.to(`display:${deptId}`).emit('queue_called', payload);
 

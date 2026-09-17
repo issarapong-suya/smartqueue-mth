@@ -35,7 +35,7 @@ async function getMasterStations() {
  */
 async function resolveStationTarget(stationId, deskNumber = 1, roomMode = false) {
   const master = await getMasterStations();
-  const dept = (stationId || '').toLowerCase().replace(/[0-9]/g, '');
+  let dept = (stationId || '').toLowerCase().replace(/[0-9]/g, '');
   let deskNum = parseInt(deskNumber) || 1;
 
   let station_id = null;
@@ -96,6 +96,14 @@ async function resolveStationTarget(stationId, deskNumber = 1, roomMode = false)
       displayLabel = `ห้องตรวจทันตกรรม`;
       ttsTarget = `ที่ห้องตรวจทันตกรรม`;
     }
+  } else if (dept === 'f' || dept === 'm') {
+    // ช่องชำระเงิน (การเงิน) -> M01 ใน HOSxP, แผนก 027
+    station_id = 'M01';
+    stationno = 1;
+    depcode = '027';
+    displayLabel = 'ช่องชำระเงิน';
+    ttsTarget = 'ที่ช่องชำระเงิน';
+    dept = 'rx'; // จัดอยู่ในกลุ่มจอแสดงผลรวมห้องยาและการเงิน
   } else if (dept === 'rx') {
     // ห้องยา ช่อง 1-5 -> R01-R05
     deskNum = Math.min(Math.max(deskNum, 1), 8);

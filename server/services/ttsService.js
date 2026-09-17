@@ -40,30 +40,51 @@ function getVoices() {
   return VOICES.map(v => ({ id: v.id, name: v.name, isDefault: v.isDefault }));
 }
 
+// สถานะ Circuit Breaker สำหรับ Edge TTS
+let edgeConsecutiveFailures = 0;
+let edgeDisabledUntil = 0;
+const EDGE_COOLDOWN_MS = 5 * 60 * 1000; // หยุดพัก 5 นาทีหาก Edge ขัดข้อง
+const inFlightRequests = new Map();
+
 /**
  * สังเคราะห์เสียงผ่าน Microsoft Edge Neural TTS
  */
 function synthesizeEdgeTTS(text, voiceName = 'th-TH-PremwadeeNeural', rate = '-20%') {
   return new Promise((resolve, reject) => {
-    const token = generateSecMsGecToken();
-    const connId = crypto.randomBytes(16).toString('hex');
-    const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-143.0.3650.75&ConnectionId=${connId}`;
+    let ws = null;
+    let timeout = null;
 
-    const ws = new WebSocket(url, {
-      headers: {
-        'Pragma': 'no-cache',
-        'Cache-Control': 'no-cache',
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0',
-        'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
-      }
-    });
+    try {
+      const token = generateSecMsGecToken();
+      const connId = crypto.randomBytes(16).toString('hex');
+      const url = `wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1?TrustedClientToken=${TRUSTED_CLIENT_TOKEN}&Sec-MS-GEC=${token}&Sec-MS-GEC-Version=1-143.0.3650.75&ConnectionId=${connId}`;
+
+      ws = new WebSocket(url, {
+        headers: {
+          'Pragma': 'no-cache',
+          'Cache-Control': 'no-cache',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36 Edg/143.0.0.0',
+          'Origin': 'chrome-extension://jdiccldimpdaibmpdkjnbmckianbfold'
+        }
+      });
+    } catch (err) {
+      return reject(err);
+    }
 
     const audioBuffers = [];
 
-    const timeout = setTimeout(() => {
-      if (ws.readyState === WebSocket.OPEN) ws.close();
-      reject(new Error('Edge TTS connection timed out'));
-    }, 12000);
+    // ลด timeout เหลือ 2.5 วินาที เพื่อไม่ให้ระบบค้างหาก Microsoft Edge บล็อกหรือเน็ตช้า
+    timeout = setTimeout(() => {
+      try { if (ws && ws.readyState === WebSocket.OPEN) ws.close(); } catch(e) {}
+      reject(new Error('Edge TTS connection timed out (2.5s)'));
+    }, 2500);
+
+    // ดักจับเมื่อ Microsoft ปฏิเสธการเชื่อมต่อ เช่น HTTP 403 Forbidden
+    ws.on('unexpected-response', (req, res) => {
+      clearTimeout(timeout);
+      try { ws.close(); } catch(e) {}
+      reject(new Error(`Edge TTS handshake rejected (HTTP ${res.statusCode} ${res.statusMessage || ''})`));
+    });
 
     ws.on('open', () => {
       const configMsg = 'Content-Type:application/json; charset=utf-8\r\nPath:speech.config\r\n\r\n' + JSON.stringify({
@@ -93,7 +114,7 @@ function synthesizeEdgeTTS(text, voiceName = 'th-TH-PremwadeeNeural', rate = '-2
         const textMsg = data.toString();
         if (textMsg.includes('Path:turn.end')) {
           clearTimeout(timeout);
-          ws.close();
+          try { ws.close(); } catch(e) {}
           resolve(Buffer.concat(audioBuffers));
         }
       }
@@ -101,30 +122,40 @@ function synthesizeEdgeTTS(text, voiceName = 'th-TH-PremwadeeNeural', rate = '-2
 
     ws.on('error', (err) => {
       clearTimeout(timeout);
+      try { ws.close(); } catch(e) {}
       reject(err);
     });
   });
 }
 
 /**
- * สังเคราะห์เสียงผ่าน Google Translate TTS (Fallback)
+ * สังเคราะห์เสียงผ่าน Google Translate TTS (Fallback รวดเร็ว ~300-450ms)
  */
 function synthesizeGoogleTTS(text) {
   return new Promise((resolve, reject) => {
     const url = `https://translate.google.com/translate_tts?ie=UTF-8&tl=th&client=tw-ob&q=${encodeURIComponent(text)}`;
-    https.get(url, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' } }, (res) => {
+    const req = https.get(url, {
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' },
+      timeout: 4000
+    }, (res) => {
       if (res.statusCode !== 200) {
         return reject(new Error(`Google TTS status code: ${res.statusCode}`));
       }
       const chunks = [];
       res.on('data', chunk => chunks.push(chunk));
       res.on('end', () => resolve(Buffer.concat(chunks)));
-    }).on('error', reject);
+    });
+
+    req.on('timeout', () => {
+      req.destroy();
+      reject(new Error('Google TTS request timeout (4s)'));
+    });
+    req.on('error', reject);
   });
 }
 
 /**
- * สังเคราะห์เสียงพร้อมระบบ Cache
+ * สังเคราะห์เสียงพร้อมระบบ Cache + Deduplication + Circuit Breaker
  * @param {string} text - ข้อความที่ต้องการให้อ่าน
  * @param {string} voiceKey - 'premwadee' | 'niwat' | 'google'
  * @param {string} rate - ความเร็ว เช่น '-20%', '-15%'
@@ -151,35 +182,54 @@ async function getAudioBuffer(text, voiceKey = 'premwadee', rate = '-20%') {
   const cacheKey = crypto.createHash('md5').update(`${selectedVoice.id}_${rate}_${cleanText}`).digest('hex');
   const cacheFile = path.join(CACHE_DIR, `${cacheKey}.mp3`);
 
-  // 1. ตรวจสอบ Cache
+  // 1. ตรวจสอบ Disk Cache (0ms)
   if (fs.existsSync(cacheFile)) {
     try {
       return await fs.promises.readFile(cacheFile);
     } catch (e) {}
   }
 
-  let audioBuffer = null;
+  // 2. ถ้าคำขอเดียวกันกำลังถูกประมวลผลอยู่ (In-Flight Deduplication) ให้รอ Promise ตัวเดียวกัน
+  if (inFlightRequests.has(cacheKey)) {
+    return inFlightRequests.get(cacheKey);
+  }
 
-  // 2. ถ้าเลือก Edge Neural voice (ปรับความเร็ว rate='-20%' ให้อ่านช้า ชัดเจน ฟังสบาย)
-  if (selectedVoice.edgeVoice) {
-    try {
-      audioBuffer = await synthesizeEdgeTTS(cleanText, selectedVoice.edgeVoice, rate);
-    } catch (edgeErr) {
-      console.warn(`[ttsService] Edge TTS failed (${edgeErr.message}), falling back to Google...`);
+  const taskPromise = (async () => {
+    let audioBuffer = null;
+
+    // 3. ถ้าเลือก Edge Neural voice และไม่ได้อยู่ในช่วง Cooldown
+    const isEdgeBlocked = Date.now() < edgeDisabledUntil;
+    if (selectedVoice.edgeVoice && !isEdgeBlocked) {
+      try {
+        audioBuffer = await synthesizeEdgeTTS(cleanText, selectedVoice.edgeVoice, rate);
+        edgeConsecutiveFailures = 0; // รีเซ็ตตัวนับความล้มเหลว
+      } catch (edgeErr) {
+        edgeConsecutiveFailures++;
+        console.warn(`[ttsService] Edge TTS failed (${edgeErr.message}), falling back to Google...`);
+        if (edgeConsecutiveFailures >= 2) {
+          edgeDisabledUntil = Date.now() + EDGE_COOLDOWN_MS;
+          console.warn(`[ttsService] ⚡ Edge TTS cooldown active (5 mins). Fast Google TTS will be used.`);
+        }
+      }
     }
-  }
 
-  // 3. Fallback to Google TTS
-  if (!audioBuffer || audioBuffer.length === 0) {
-    audioBuffer = await synthesizeGoogleTTS(cleanText);
-  }
+    // 4. Fallback to Google TTS (รวดเร็ว ~300ms)
+    if (!audioBuffer || audioBuffer.length === 0) {
+      audioBuffer = await synthesizeGoogleTTS(cleanText);
+    }
 
-  // 4. บันทึก Cache
-  if (audioBuffer && audioBuffer.length > 0) {
-    fs.promises.writeFile(cacheFile, audioBuffer).catch(() => {});
-  }
+    // 5. บันทึกลง Disk Cache
+    if (audioBuffer && audioBuffer.length > 0) {
+      fs.promises.writeFile(cacheFile, audioBuffer).catch(() => {});
+    }
 
-  return audioBuffer;
+    return audioBuffer;
+  })().finally(() => {
+    inFlightRequests.delete(cacheKey);
+  });
+
+  inFlightRequests.set(cacheKey, taskPromise);
+  return taskPromise;
 }
 
 // ── ตารางแปลงตัวอักษรและตัวเลขเป็นคำอ่านภาษาไทย ──────────────────────

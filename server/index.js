@@ -51,6 +51,8 @@ app.use('/api/admin', adminRoutes);
 
 const { initLegacyBridge, EVENT_MAP } = require('./services/legacyBridge');
 const nameService = require('./services/nameService');
+const ttsService = require('./services/ttsService');
+const queueService = require('./services/queueService');
 
 // Start Legacy Signal Bridge (รับสัญญาณจาก http://192.168.100.51:19009)
 initLegacyBridge(io);
@@ -58,29 +60,60 @@ initLegacyBridge(io);
 // รองรับคำสั่งเรียกคิว HTTP GET แบบระบบเดิม เช่น /sa1/A077 หรือ /rx1/001
 app.get('/:station/:q', async (req, res, next) => {
   const { station, q } = req.params;
-  const meta = EVENT_MAP[station.toLowerCase()];
+  const sLower = station.toLowerCase();
+  const meta = EVENT_MAP[sLower];
   if (!meta) return next();
 
-  if (!q || q.length < 3) {
+  if (!q || q === 's99999') {
+    io.to(`display:${meta.dept}`).emit('queue_refresh', { stationId: station, dept: meta.dept });
+    if (meta.dept !== station) io.to(`display:${station}`).emit('queue_refresh', { stationId: station });
+    return res.send(`${station} refresh`);
+  }
+
+  if (q.length < 3) {
     return res.send(station);
   }
 
   try {
-    const patientName = await nameService.getName(q);
+    const nameData = await nameService.getNameData(q);
+    const patientName = nameData.displayName || '';
+    const deskMatch = station.match(/\d+/);
+    const deskNumber = deskMatch ? parseInt(deskMatch[0]) : 1;
+
     const payload = {
       stationId: station,
+      deskNumber,
       stationLabel: meta.label,
       department: meta.dept,
       queueId: q,
-      patientName: patientName || '',
+      patientName,
+      rawName: nameData.rawName || '',
+      ttsName: nameData.ttsName || '',
+      ttsTarget: meta.ttsTarget || (meta.dept === 'd' ? 'ที่ห้องตรวจทันตกรรม' : undefined),
       type: 'normal',
       source: 'legacy_http',
       timestamp: Date.now()
     };
 
+    payload.ttsSentence = ttsService.buildCallSentence({
+      queueId: payload.queueId,
+      patientName: payload.patientName,
+      ttsName: payload.ttsName,
+      ttsTarget: payload.ttsTarget,
+      stationLabel: payload.stationLabel
+    });
+
     io.to(`display:${meta.dept}`).emit('queue_called', payload);
     if (meta.dept !== station) io.to(`display:${station}`).emit('queue_called', payload);
     io.to(`caller:${station}`).emit('queue_called_ack', payload);
+
+    await queueService.saveCallLog({
+      stationId: station,
+      queueId: q,
+      patientName,
+      calledBy: 'http_legacy_caller',
+      callType: 'normal'
+    });
 
     res.send(`${station} ${q}`);
   } catch (err) {

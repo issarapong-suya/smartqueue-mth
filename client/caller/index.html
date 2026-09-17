@@ -526,6 +526,10 @@
           { val: 4, label: "ช่องจ่ายยา 4" },
           { val: 5, label: "ช่องจ่ายยา 5" },
         ];
+      } else if (deptPrefix === "f") {
+        deskOptions = [
+          { val: 1, label: "ช่องชำระเงิน" },
+        ];
       }
 
       // ── สำหรับแผนกทันตกรรม (d): โหมดส่งตรวจแบบเลือกห้อง (ห้อง 1-5) ──
@@ -622,6 +626,15 @@
       socket.on("queue_refresh", () => {
         fetchWaitingList();
         fetchCalledList();
+      });
+
+      socket.on("call_error", (data) => {
+        Swal.fire({
+          icon: "error",
+          title: "เกิดข้อผิดพลาดในการเรียกคิว",
+          text: data?.message || "ไม่สามารถเรียกคิวได้",
+          timer: 3000,
+        });
       });
 
       // ── Fetch Waiting List ────────────────────────────────────────────
@@ -824,6 +837,14 @@
           return;
         }
 
+        // หากยังไม่มีคิวแสดงในกล่องเรียกล่าสุด ให้ใช้คิวล่าสุดจากประวัติเพื่อเปิดให้กดปุ่มเรียกซ้ำได้ทันที
+        if (!currentCallingQ && calledQueue.length > 0) {
+          const top = calledQueue[0];
+          const topQ = top.depq || top.fullname;
+          const topName = top.raw_fullname || top.fullname;
+          updateCurrentCallUI(topQ, topName);
+        }
+
         let html = "";
         calledQueue.forEach((item, idx) => {
           const qCode = item.depq || item.fullname;
@@ -832,7 +853,6 @@
             ? `โต๊ะ ${item.stationno}`
             : item.station || "";
           const time = item.time_start ? item.time_start.slice(0, 5) : "";
-          const vn = item.vn || "";
 
           html += `
           <div class="waiting-list-item">
@@ -844,7 +864,7 @@
               </div>
             </div>
             <div class="flex-shrink-0">
-              <button class="btn btn-sm btn-warning fw-bold text-dark px-2.5 py-1 shadow-sm" onclick="recallSpecific('${qCode}', '${pName}', '${vn}', ${item.stationno || currentDeskNumber})" title="กดเรียกซ้ำ">
+              <button class="btn btn-sm btn-warning fw-bold text-dark px-2.5 py-1 shadow-sm" onclick="recallSpecificIndex(${idx})" title="กดเรียกซ้ำ">
                 <i class="fa-solid fa-rotate-left me-1"></i>เรียกซ้ำ
               </button>
             </div>
@@ -852,6 +872,18 @@
         `;
         });
         container.innerHTML = html;
+      }
+
+      function recallSpecificIndex(idx) {
+        const item = calledQueue[idx];
+        if (!item) return;
+        const qCode = item.depq || item.fullname;
+        const isRoomMode = isDental ? isDentalRoomMode : false;
+        emitCall(qCode, "repeat", {
+          vn: item.vn || "",
+          deskNumber: item.stationno || currentDeskNumber,
+          roomMode: isRoomMode,
+        });
       }
 
       function recallSpecific(qCode, pName, vn, deskNo) {
@@ -941,6 +973,9 @@
       function callRepeat() {
         if (currentCallingQ) {
           emitCall(currentCallingQ.qNum, "repeat");
+        } else if (calledQueue.length > 0) {
+          const top = calledQueue[0];
+          emitCall(top.depq || top.fullname, "repeat", { vn: top.vn || "" });
         }
       }
 

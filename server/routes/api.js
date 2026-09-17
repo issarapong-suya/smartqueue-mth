@@ -88,11 +88,14 @@ router.post('/queue/call', authenticateToken, async (req, res) => {
 
     // Broadcast ผ่าน Socket.IO
     if (_io) {
-      _io.to(`display:${stationId}`).emit('queue_called', {
+      const { getDepartmentScreenId } = require('../socket/queueSocket');
+      const deptId = getDepartmentScreenId(stationId);
+      const callPayload = {
         stationId,
         stationLabel: station.name,
         queueId,
         patientName,
+        department: deptId,
         ttsSentence: ttsService.buildCallSentence({
           queueId,
           patientName,
@@ -100,7 +103,18 @@ router.post('/queue/call', authenticateToken, async (req, res) => {
         }),
         type,
         timestamp: Date.now(),
-      });
+      };
+
+      // ⚡ Pre-warm TTS cache ในพื้นหลังทันที
+      if (callPayload.ttsSentence) {
+        ttsService.getAudioBuffer(callPayload.ttsSentence).catch(() => {});
+      }
+
+      _io.to(`display:${deptId}`).emit('queue_called', callPayload);
+      if (deptId !== stationId) {
+        _io.to(`display:${stationId}`).emit('queue_called', callPayload);
+      }
+      _io.to(`display:${deptId}`).emit('queue_refresh', { dept: deptId });
     }
 
     // บันทึก log
@@ -397,6 +411,46 @@ router.get('/queue/called', async (req, res) => {
         }
       } catch (e) {
         console.warn('sq_call_log Dental merge error:', e.message);
+      }
+    }
+
+    if (station.layout === 'pharmacy' || stationId === 'rx' || stationId === 'f' || stationId.startsWith('rx')) {
+      try {
+        const sqCalls = await sqDb('sq_call_log')
+          .whereRaw('DATE(called_at) = CURDATE()')
+          .where(b => {
+            if (stationId === 'f') {
+              b.where('station_id', 'f');
+            } else {
+              b.where('station_id', 'like', 'rx%').orWhere('station_id', 'rx');
+            }
+          })
+          .orderBy('called_at', 'desc')
+          .limit(30);
+
+        const existingQ = new Set(queues.map(q => (q.depq || '').toUpperCase()));
+        for (const sc of sqCalls) {
+          const qCode = (sc.queue_id || '').toUpperCase();
+          if (!existingQ.has(qCode)) {
+            const m = String(sc.station_id || '').match(/\d+/);
+            const rNo = m ? parseInt(m[0]) : 1;
+            const timeStr = sc.called_at ? new Date(sc.called_at).toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
+            queues.unshift({
+              vn: sc.queue_id,
+              depq: sc.queue_id,
+              fullname: sc.patient_name,
+              raw_fullname: sc.patient_name,
+              stationno: rNo,
+              station_id: sc.station_id,
+              station: stationId === 'f' ? 'ช่องชำระเงิน' : `ช่องจ่ายยา ${rNo}`,
+              time_start: timeStr,
+              dep: stationId === 'f' ? '027' : '059'
+            });
+            existingQ.add(qCode);
+          }
+        }
+      } catch (e) {
+        console.warn('sq_call_log Pharmacy merge error:', e.message);
       }
     }
 

@@ -40,12 +40,12 @@ const EVENT_MAP = {
   c:   { dept: 'sb', label: 'พบแพทย์' },
 
   // rx: ห้องยาและการเงิน (ส่งเข้าจอรวม rx)
-  rx1: { dept: 'rx', label: 'รับยา ช่อง 1' },
-  rx2: { dept: 'rx', label: 'รับยา ช่อง 2' },
-  rx3: { dept: 'rx', label: 'รับยา ช่อง 3' },
-  rx4: { dept: 'rx', label: 'รับยา ช่อง 4' },
-  rx5: { dept: 'rx', label: 'รับยา ช่อง 5' },
-  f:   { dept: 'rx', label: 'ช่องชำระเงิน' },
+  rx1: { dept: 'rx', label: 'รับยา ช่อง 1', ttsTarget: 'ที่ช่องจ่ายยา 1' },
+  rx2: { dept: 'rx', label: 'รับยา ช่อง 2', ttsTarget: 'ที่ช่องจ่ายยา 2' },
+  rx3: { dept: 'rx', label: 'รับยา ช่อง 3', ttsTarget: 'ที่ช่องจ่ายยา 3' },
+  rx4: { dept: 'rx', label: 'รับยา ช่อง 4', ttsTarget: 'ที่ช่องจ่ายยา 4' },
+  rx5: { dept: 'rx', label: 'รับยา ช่อง 5', ttsTarget: 'ที่ช่องจ่ายยา 5' },
+  f:   { dept: 'rx', label: 'ช่องชำระเงิน', ttsTarget: 'ที่ช่องชำระเงิน' },
 
   // t: ห้องฉีดยา ทำแผล
   t:   { dept: 't', label: 'ห้องฉีดยา ทำแผล' },
@@ -73,29 +73,42 @@ function initLegacyBridge(io) {
 
   let ioClient = null;
   try {
-    ioClient = require('c:/Users/HP/OneDrive/Desktop/Q69/qsignal/node_modules/socket.io-client');
+    ioClient = require('socket.io-client');
   } catch (err) {
-    console.warn('[LegacyBridge] socket.io-client v2 not found in Q69, skipping legacy bridge:', err.message);
-    return;
+    try {
+      const path = require('path');
+      ioClient = require(path.resolve(__dirname, '../../../smart queue plk/qsignal/node_modules/socket.io-client'));
+    } catch (e2) {
+      console.warn('[LegacyBridge] socket.io-client v2 not found, running without legacy bridge:', e2.message);
+      return;
+    }
   }
 
-  console.log(`[LegacyBridge] Connecting to legacy signal server: ${legacyUrl}...`);
+  console.log(`[LegacyBridge] Initializing bridge to legacy signal server: ${legacyUrl}...`);
   const legacySocket = ioClient(legacyUrl, {
     reconnection: true,
-    reconnectionDelay: 3000,
-    reconnectionAttempts: Infinity
+    reconnectionDelay: 5000,
+    reconnectionDelayMax: 15000,
+    reconnectionAttempts: Infinity,
+    timeout: 5000,
   });
 
+  let hasWarnedError = false;
+
   legacySocket.on('connect', () => {
+    hasWarnedError = false;
     console.log(`[LegacyBridge] ✅ Connected to legacy signal server: ${legacyUrl}`);
   });
 
   legacySocket.on('disconnect', () => {
-    console.warn('[LegacyBridge] ⚠️ Disconnected from legacy signal server. Reconnecting...');
+    console.warn('[LegacyBridge] ⚠️ Disconnected from legacy signal server. Will reconnect in background...');
   });
 
   legacySocket.on('connect_error', (err) => {
-    console.warn('[LegacyBridge] ⚠️ Connect error:', err.message);
+    if (!hasWarnedError) {
+      console.warn(`[LegacyBridge] ℹ️ Legacy signal server (${legacyUrl}) not reachable: ${err.message} (SmartQueue v2 operates standalone)`);
+      hasWarnedError = true;
+    }
   });
 
   // ผูก Listener กับทุก Event ของระบบเดิม
@@ -119,8 +132,12 @@ function initLegacyBridge(io) {
         const rawName = nameData.rawName || '';
         const ttsName = nameData.ttsName || '';
 
+        const deskMatch = ev.match(/\d+/);
+        const deskNumber = deskMatch ? parseInt(deskMatch[0]) : 1;
+
         const payload = {
           stationId: ev,            // e.g. "sa1" (ระบุว่าโต๊ะไหนเป็นคนเรียก)
+          deskNumber,
           stationLabel: meta.label, // e.g. "โต๊ะซักประวัติ 1"
           department: meta.dept,    // e.g. "sa"
           queueId: q,
@@ -140,6 +157,11 @@ function initLegacyBridge(io) {
           ttsTarget: payload.ttsTarget,
           stationLabel: payload.stationLabel
         });
+
+        // ⚡ Pre-warm TTS cache ในพื้นหลังทันทีเมื่อรับสัญญาณจากระบบเดิม
+        if (payload.ttsSentence) {
+          ttsService.getAudioBuffer(payload.ttsSentence).catch(() => {});
+        }
 
         // 1. ส่งไปยังจอแสดงผลรวมของแผนก (เช่น display:sa)
         io.to(`display:${meta.dept}`).emit('queue_called', payload);
