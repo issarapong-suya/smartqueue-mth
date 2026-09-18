@@ -737,8 +737,12 @@
     /* ── Ding-Dong ─────────────────────────────────────────────────── */
     function playDingDong(onEnd) {
       try {
-        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        if (audioCtx.state === 'suspended') audioCtx.resume();
+        if (!audioCtx || audioCtx.state === 'closed') {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
         const t = audioCtx.currentTime;
         [[659.25, t, t+0.65], [523.25, t+0.3, t+1.15]].forEach(([f, s, e]) => {
           const osc  = audioCtx.createOscillator();
@@ -752,7 +756,10 @@
         });
         // ปรับจังหวะเชื่อมต่อไปยังเสียงพูดที่ 550ms ให้กระชับต่อเนื่องเป็นธรรมชาติ
         if (typeof onEnd === 'function') setTimeout(onEnd, 550);
-      } catch(err) { if (typeof onEnd === 'function') onEnd(); }
+      } catch(err) {
+        console.warn('playDingDong error:', err);
+        if (typeof onEnd === 'function') onEnd();
+      }
     }
 
     /* ── TTS ────────────────────────────────────────────────────────── */
@@ -1055,16 +1062,50 @@
           m.mountLayout(root, stationConfig);
         }
 
-        // Socket
-        socket = io();
-        socket.emit('join_display', { stationId });
+        // Socket: รองรับการต่อใหม่อัตโนมัติและ Re-join ห้องเสมอเมื่อเน็ตหลุดข้ามคืน
+        socket = io({
+          reconnection: true,
+          reconnectionDelay: 1000,
+          reconnectionDelayMax: 5000,
+          reconnectionAttempts: Infinity
+        });
+
+        socket.on('connect', () => {
+          console.log('[Socket] Connected / Reconnected ID:', socket.id);
+          socket.emit('join_display', { stationId });
+        });
+
+        socket.on('disconnect', (reason) => {
+          console.warn('[Socket] Disconnected:', reason);
+        });
+
         socket.on('queue_called', (data) => {
           window.showCallPopup(data.queueId, data.patientName, data.stationLabel, data.ttsName, data.ttsTarget, data.ttsSentence);
           window.dispatchEvent(new CustomEvent('sq_queue_called', { detail: data }));
         });
+
         socket.on('queue_refresh', () => {
           window.dispatchEvent(new CustomEvent('sq_queue_refresh'));
         });
+
+        // ตรวจสอบการเชื่อมต่อ Socket Heartbeat ทุก 30 วินาที
+        setInterval(() => {
+          if (socket && !socket.connected) {
+            console.warn('[Socket] Disconnected detected. Reconnecting...');
+            socket.connect();
+          }
+        }, 30000);
+
+        // ── Daily Kiosk Auto-Refresh at 05:00 AM (รีเฟรชความจำเบราว์เซอร์เมื่อข้ามวันใหม่) ──
+        let lastKioskDate = new Date().getDate();
+        setInterval(() => {
+          const now = new Date();
+          if (now.getDate() !== lastKioskDate && now.getHours() >= 5) {
+            lastKioskDate = now.getDate();
+            console.log('[Kiosk] Daily auto-refresh triggered at 05:00 AM');
+            window.location.reload();
+          }
+        }, 60000);
 
         // Marquee
         fetchMarquee();

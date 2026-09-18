@@ -609,8 +609,16 @@
       }
 
       // ── Connect Socket.IO ─────────────────────────────────────────────
-      socket = io();
-      socket.emit("join_caller", { stationId: currentStationId });
+      socket = io({
+        reconnection: true,
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        reconnectionAttempts: Infinity
+      });
+
+      socket.on("connect", () => {
+        socket.emit("join_caller", { stationId: currentStationId });
+      });
 
       socket.on("queue_called_ack", (data) => {
         if (
