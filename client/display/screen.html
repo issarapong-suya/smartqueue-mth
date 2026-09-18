@@ -782,7 +782,7 @@
       safetyTimer = setTimeout(done, 18000);
 
       const voiceParam = urlParams.get('voice');
-      const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'premwadee';
+      const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'google';
       const audio = existingAudio || new Audio(`/api/tts?text=${encodeURIComponent(sentence)}&voice=${encodeURIComponent(currentVoice)}`);
       currentAudio = audio;
 
@@ -919,7 +919,7 @@
 
       // ⚡ Preload เสียงล่วงหน้าทันที เพื่อให้เบราว์เซอร์เริ่มดาวน์โหลดในพื้นหลังทันที
       const voiceParam = urlParams.get('voice');
-      const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'premwadee';
+      const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'google';
       let preAudio = null;
       try {
         preAudio = new Audio(`/api/tts?text=${encodeURIComponent(sentence)}&voice=${encodeURIComponent(currentVoice)}`);
@@ -989,7 +989,7 @@
         let audioToPlay = currentCall.preAudio;
         if (!audioToPlay) {
           const voiceParam = urlParams.get('voice');
-          const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'premwadee';
+          const currentVoice = voiceParam || localStorage.getItem('sq_display_voice') || 'google';
           try {
             audioToPlay = new Audio(`/api/tts?text=${encodeURIComponent(sentence)}&voice=${encodeURIComponent(currentVoice)}`);
             audioToPlay.preload = 'auto';

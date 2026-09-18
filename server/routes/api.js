@@ -471,7 +471,7 @@ router.get('/tts/voices', (req, res) => {
 // สตรีมเสียงสังเคราะห์ภาษาไทยคุณภาพสูง (Microsoft Edge Neural + Google Fallback)
 router.get('/tts', async (req, res) => {
   const text = (req.query.text || '').trim();
-  const voice = (req.query.voice || 'premwadee').trim();
+  const voice = (req.query.voice || ttsService.getDefaultVoice()).trim();
   const rate = (req.query.rate || '-20%').trim();
   if (!text) return res.status(400).send('Missing text parameter');
 
